@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
 import { AgentService } from "./agent.service";
 import { HTTPSTATUS } from "../../config/http.config";
+import { eventService } from "../../lib/event-service";
 
 const agentService = new AgentService();
 
@@ -18,6 +19,11 @@ export class AgentController {
         }
 
         const reply = await agentService.processMessage(message, userId);
+
+        eventService.emit(userId, {
+            type: "new_message",
+            data: { conversationId: "", customerPhone: "test-agent" },
+        });
 
         return res.status(HTTPSTATUS.OK).json({
             success: true,

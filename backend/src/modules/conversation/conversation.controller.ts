@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
 import { ConversationService } from "./conversation.service";
 import { HTTPSTATUS } from "../../config/http.config";
+import { eventService } from "../../lib/event-service";
 
 const conversationService = new ConversationService();
 
@@ -35,6 +36,11 @@ export class ConversationController {
         }
 
         const message = await conversationService.addMessage(userId, id, "agent", content);
+
+        eventService.emit(userId, {
+            type: "new_message",
+            data: { conversationId: id, customerPhone: id },
+        });
 
         return res.status(HTTPSTATUS.OK).json({ success: true, message });
     });
