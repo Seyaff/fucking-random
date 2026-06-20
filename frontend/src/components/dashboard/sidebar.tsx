@@ -10,6 +10,7 @@ import {
   MessageSquare,
   BarChart3,
   Users,
+  Package,
   FileText,
   Settings,
   Menu,
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/inbox", label: "Inbox", icon: MessageSquare },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/products", label: "Products", icon: Package },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
