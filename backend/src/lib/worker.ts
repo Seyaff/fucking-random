@@ -1,9 +1,11 @@
 import { createWorker, messageQueue } from "./queue";
 import { WhatsAppService } from "../modules/whatsapp/whatsapp.service";
 import { AgentService } from "../modules/agent/agent.service";
+import { ConversationService } from "../modules/conversation/conversation.service";
 
 const whatsappService = new WhatsAppService();
 const agentService = new AgentService();
+const conversationService = new ConversationService();
 
 export function startWorker() {
     createWorker(async (job) => {
@@ -11,9 +13,11 @@ export function startWorker() {
 
         console.log(`[${job.id}] Processing from ${sender}: "${text}"`);
 
-        const reply = await agentService.processMessage(text);
+        const reply = await agentService.processMessage(text, userId);
 
         await whatsappService.sendMessage(sender, reply, userId);
+
+        await conversationService.addMessage(userId, sender, "assistant", reply);
 
         console.log(`[${job.id}] Replied: "${reply.slice(0, 60)}..."`);
     });
