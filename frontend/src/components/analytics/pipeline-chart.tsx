@@ -27,7 +27,7 @@ export function PipelineChart() {
             <XAxis type="number" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
             <YAxis dataKey="stage" type="category" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={90} />
             <Tooltip
-              formatter={(value: string | number) => [`$${Number(value).toLocaleString()}`, "Value"]}
+              formatter={(value) => [`$${Number(value).toLocaleString()}`, "Value"]}
               contentStyle={{
                 background: "var(--popover)",
                 border: "1px solid var(--border)",

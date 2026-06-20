@@ -55,7 +55,7 @@ export function FirstResponseTime() {
                 position="top"
                 fontSize={9}
                 fill="var(--muted-foreground)"
-                formatter={(v: string | number) => formatTime(Number(v))}
+                formatter={(v) => formatTime(Number(v))}
               />
             </Bar>
           </BarChart>
