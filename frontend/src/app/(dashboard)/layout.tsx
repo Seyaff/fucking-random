@@ -10,27 +10,33 @@ import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, accessToken, isLoading, setUser, setLoading } = useAuthStore();
+  const { user, accessToken, isLoading, isInitialized, setUser, setLoading } =
+    useAuthStore();
 
   useEffect(() => {
+    useAuthStore.getState().initialize();
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
     if (!accessToken) {
-      router.replace("/");
+      router.replace("/login");
       return;
     }
 
     if (!user) {
+      setLoading(true);
       authService
         .getMe()
         .then(setUser)
         .catch(() => {
           useAuthStore.getState().reset();
-          router.replace("/");
+          router.replace("/login");
         })
         .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
     }
-  }, [accessToken, user, router, setUser, setLoading]);
+  }, [isInitialized, accessToken, user, router, setUser, setLoading]);
 
   if (isLoading) {
     return (
@@ -40,14 +46,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) return null;
+  if (!accessToken || !user) return null;
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar user={user} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

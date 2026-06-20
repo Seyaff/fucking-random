@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/stores/auth-store";
@@ -30,7 +32,7 @@ export function Topbar({ user }: { user: User }) {
   };
 
   return (
-    <header className="flex h-14 items-center justify-end border-b px-6">
+    <header className="flex h-14 items-center justify-end border-b px-4 md:px-6">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex items-center gap-2 rounded-full outline-none">
@@ -38,7 +40,9 @@ export function Topbar({ user }: { user: User }) {
               <AvatarImage src={user.avatarUrl} />
               <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium">{user.name}</span>
+            <span className="text-sm font-medium hidden sm:inline">
+              {user.name}
+            </span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

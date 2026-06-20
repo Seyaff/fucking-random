@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import axios from "axios";
+import { env } from "@/config/env";
 
 interface User {
   id: string;
@@ -12,29 +14,45 @@ interface AuthStore {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
+  isInitialized: boolean;
   setUser: (user: User | null) => void;
   setAccessToken: (token: string | null) => void;
   setLoading: (loading: boolean) => void;
   reset: () => void;
+  initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
-  accessToken:
-    typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : null,
+  accessToken: null,
   isLoading: true,
+  isInitialized: false,
+
   setUser: (user) => set({ user }),
-  setAccessToken: (accessToken) => {
-    if (accessToken) {
-      sessionStorage.setItem("accessToken", accessToken);
-    } else {
-      sessionStorage.removeItem("accessToken");
-    }
-    set({ accessToken });
-  },
+
+  setAccessToken: (accessToken) => set({ accessToken }),
+
   setLoading: (isLoading) => set({ isLoading }),
+
   reset: () => {
-    sessionStorage.removeItem("accessToken");
-    set({ user: null, accessToken: null });
+    set({ user: null, accessToken: null, isInitialized: false });
+  },
+
+  initialize: async () => {
+    if (get().isInitialized) return;
+
+    set({ isLoading: true });
+    try {
+      const { data } = await axios.post(
+        `${env.API_URL}/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
+      set({ accessToken: data.accessToken });
+    } catch {
+      set({ user: null, accessToken: null });
+    } finally {
+      set({ isLoading: false, isInitialized: true });
+    }
   },
 }));

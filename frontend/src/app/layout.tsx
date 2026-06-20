@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgentAI — AI-powered customer support",
+  title: "Relay — AI-powered customer support",
   description:
     "WhatsApp, Gmail, Slack — one unified inbox. AI that understands every language your customers use.",
 };

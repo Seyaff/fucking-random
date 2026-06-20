@@ -3,12 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
+import { authService } from "@/services/auth.service";
 import { Loader2 } from "lucide-react";
 
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
+  const { setAccessToken, setUser } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -20,13 +21,23 @@ function CallbackContent() {
       return;
     }
 
-    if (token) {
-      setAccessToken(token);
-      router.replace("/inbox");
-    } else {
+    if (!token) {
       setError("No access token received.");
+      return;
     }
-  }, [searchParams, setAccessToken, router]);
+
+    setAccessToken(token);
+    authService
+      .getMe()
+      .then((user) => {
+        setUser(user);
+        router.replace("/inbox");
+      })
+      .catch(() => {
+        setAccessToken(null);
+        setError("Failed to load user profile.");
+      });
+  }, [searchParams, setAccessToken, setUser, router]);
 
   if (error) {
     return (

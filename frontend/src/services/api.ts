@@ -1,5 +1,6 @@
 import axios from "axios";
 import { env } from "@/config/env";
+import { useAuthStore } from "@/stores/auth-store";
 
 const api = axios.create({
   baseURL: env.API_URL,
@@ -8,8 +9,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token =
-    typeof window !== "undefined" ? sessionStorage.getItem("accessToken") : null;
+  const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -29,13 +29,14 @@ api.interceptors.response.use(
           {},
           { withCredentials: true }
         );
-        const newToken = data.accessToken;
-        sessionStorage.setItem("accessToken", newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        useAuthStore.getState().setAccessToken(data.accessToken);
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(originalRequest);
       } catch {
-        sessionStorage.removeItem("accessToken");
-        window.location.href = "/";
+        useAuthStore.getState().reset();
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
       }
     }
 
