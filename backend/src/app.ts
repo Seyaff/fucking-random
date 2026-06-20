@@ -9,6 +9,7 @@ import { Env } from "./config/app.config"
 import { errorHandler } from "./middlewares/errorHandler.middleware"
 import "./config/passport.config"
 import authRoutes from "./modules/auth/auth.routes"
+import productRoutes from "./modules/product/product.routes"
 import whatsappRoutes from "./modules/whatsapp/whatsapp.routes"
 
 dns.setServers(["1.1.1.1" , "8.8.8.8"])
@@ -26,6 +27,7 @@ app.use(cors({
 }))
 app.use(passport.initialize())
 
+app.use(`${Env.BASE_PATH}/products` , productRoutes )
 app.use(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
 app.use(`${Env.BASE_PATH}/auth`, authRoutes)
 

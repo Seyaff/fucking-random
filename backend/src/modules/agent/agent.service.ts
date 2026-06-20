@@ -46,6 +46,7 @@ function buildOpenAITools() {
 export class AgentService {
     async processMessage(
         message: string,
+        userId?: string,
         conversationHistory: { role: "user" | "assistant"; content: string }[] = []
     ): Promise<string> {
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -84,7 +85,7 @@ export class AgentService {
 
                 try {
                     const args = JSON.parse(tc.function.arguments);
-                    const result = await tool.handler(args);
+                    const result = await tool.handler(args, userId);
                     results.push(result);
                 } catch (err: any) {
                     results.push(`Error executing ${tc.function.name}: ${err.message}`);
