@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { Product } from "@/types/product";
-import { productService } from "@/services/product.service";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useProducts } from "@/hooks/use-products";
 import { CsvImport } from "@/components/products/csv-import";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,24 +10,12 @@ import { Loader2, Package, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useProducts();
   const [search, setSearch] = useState("");
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      const data = await productService.list();
-      setProducts(data.products);
-      setTotal(data.total);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  const products = data?.products ?? [];
+  const total = data?.total ?? 0;
 
   const filtered = search
     ? products.filter(
@@ -47,7 +35,7 @@ export default function ProductsPage() {
         </p>
       </div>
 
-      <CsvImport onImported={fetchProducts} />
+      <CsvImport onImported={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -63,7 +51,7 @@ export default function ProductsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
@@ -94,7 +82,7 @@ export default function ProductsPage() {
                       <td className="py-2.5 pr-4 text-muted-foreground">
                         {p.sku || <span className="italic text-xs">—</span>}
                       </td>
-                      <td className="py-2.5 pr-4">₹{p.price}</td>
+                      <td className="py-2.5 pr-4">${p.price}</td>
                       <td className="py-2.5 pr-4">
                         <Badge variant={p.stock > 0 ? "default" : "destructive"} className="text-xs">
                           {p.stock}

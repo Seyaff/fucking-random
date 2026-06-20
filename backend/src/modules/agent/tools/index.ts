@@ -12,7 +12,26 @@ export interface Tool {
     name: string;
     description: string;
     parameters: z.ZodType;
+    openai: {
+        type: "function";
+        function: {
+            name: string;
+            description: string;
+            parameters: Record<string, any>;
+        };
+    };
     handler: (args: any, userId?: string) => Promise<string>;
+}
+
+function buildOpenaiParams(name: string, desc: string, properties: Record<string, any>, required: string[]) {
+    return {
+        type: "function" as const,
+        function: {
+            name,
+            description: desc,
+            parameters: { type: "object", properties, required },
+        },
+    };
 }
 
 export const tools: Tool[] = [
@@ -20,6 +39,9 @@ export const tools: Tool[] = [
         name: "get_product_info",
         description: "Search for products by name. Returns product details including price and stock. If no exact match, return all products to let the customer choose.",
         parameters: getProductInfoSchema,
+        openai: buildOpenaiParams("get_product_info", "Search for products by name. Returns product details including price and stock.", {
+            query: { type: "string", description: "Product name or search query" },
+        }, ["query"]),
         handler: async (args: any, userId) => {
             const { query } = getProductInfoSchema.parse(args);
             if (!userId) return JSON.stringify({ found: false, message: "User not identified" });
@@ -58,6 +80,9 @@ export const tools: Tool[] = [
         name: "check_price",
         description: "Get the current price and stock of a product by its ID.",
         parameters: checkPriceSchema,
+        openai: buildOpenaiParams("check_price", "Get the current price and stock of a product by its ID.", {
+            productId: { type: "string", description: "ID of the product to check price for" },
+        }, ["productId"]),
         handler: async (args: any, userId) => {
             const { productId } = checkPriceSchema.parse(args);
             if (!userId) return JSON.stringify({ found: false, message: "User not identified" });
@@ -86,6 +111,12 @@ export const tools: Tool[] = [
         name: "place_order",
         description: "Place a customer order after confirming product and quantity with the customer.",
         parameters: placeOrderSchema,
+        openai: buildOpenaiParams("place_order", "Place a customer order after confirming product and quantity.", {
+            customerName: { type: "string", description: "Customer's full name" },
+            phone: { type: "string", description: "Customer's phone number" },
+            productId: { type: "string", description: "Product ID to order" },
+            quantity: { type: "number", description: "Quantity to order" },
+        }, ["customerName", "phone", "productId", "quantity"]),
         handler: async (args: any) => {
             const { customerName, phone, productId, quantity } = placeOrderSchema.parse(args);
 
@@ -106,7 +137,7 @@ export const tools: Tool[] = [
                 product: product.name,
                 quantity,
                 total,
-                message: `Order placed for ${quantity} ${product.unit}(s) of ${product.name}. Total: ₹${total}. Order ID: ${orderId}`,
+                message: `Order placed for ${quantity} ${product.unit}(s) of ${product.name}. Total: $${total.toFixed(2)}. Order ID: ${orderId}`,
             });
         },
     },
@@ -114,6 +145,9 @@ export const tools: Tool[] = [
         name: "get_order_status",
         description: "Check the status of an existing order.",
         parameters: getOrderStatusSchema,
+        openai: buildOpenaiParams("get_order_status", "Check the status of an existing order.", {
+            orderId: { type: "string", description: "Order ID to check status for" },
+        }, ["orderId"]),
         handler: async (args: any) => {
             const { orderId } = getOrderStatusSchema.parse(args);
             return JSON.stringify({ orderId, status: "processing", estimatedDelivery: "2-3 business days" });
@@ -123,6 +157,9 @@ export const tools: Tool[] = [
         name: "escalate_to_human",
         description: "Escalate the conversation to a human support agent when the AI cannot resolve the query.",
         parameters: escalateToHumanSchema,
+        openai: buildOpenaiParams("escalate_to_human", "Escalate the conversation to a human support agent.", {
+            reason: { type: "string", description: "Why this needs a human agent" },
+        }, ["reason"]),
         handler: async (args: any) => {
             const { reason } = escalateToHumanSchema.parse(args);
             return JSON.stringify({ escalated: true, message: `Escalated to human agent. Reason: ${reason}. A team member will reach out shortly.` });

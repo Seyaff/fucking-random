@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Phone, Check, AlertCircle, Copy, ExternalLink } from "lucide-react";
 import { env } from "@/config/env";
-import { whatsappService, type WhatsAppConnection } from "@/services/whatsapp.service";
+import { useWhatsAppConnection, useConnectWhatsApp, useDisconnectWhatsApp } from "@/hooks/use-whatsapp";
 
 const WEBHOOK_URL = `${env.API_URL}/whatsapp/webhook`;
 
@@ -31,59 +31,46 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+const INITIAL_FORM = {
+  businessAccountId: "",
+  phoneNumberId: "",
+  phoneNumber: "",
+  accessToken: "",
+  verifyToken: "",
+};
+
 export default function SettingsPage() {
-  const [connection, setConnection] = useState<WhatsAppConnection | null | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const { data: conn, isLoading, isError } = useWhatsAppConnection();
+  const { mutate: connect, isPending: connecting } = useConnectWhatsApp();
+  const { mutate: disconnect, isPending: disconnecting } = useDisconnectWhatsApp();
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    businessAccountId: "",
-    phoneNumberId: "",
-    phoneNumber: "",
-    accessToken: "",
-    verifyToken: "",
-  });
+  const connection = isError ? null : (conn ?? null);
 
-  useEffect(() => {
-    whatsappService.getConnection().then((conn) => {
-      setConnection(conn);
-    }).catch(() => {
-      setConnection(null);
-    }).finally(() => {
-      setLoading(false);
-    });
-  }, []);
+  const [form, setForm] = useState(INITIAL_FORM);
 
-  const handleConnect = async (e: React.FormEvent) => {
+  const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setConnecting(true);
-    try {
-      const result = await whatsappService.connect(form);
-      setConnection(result.account);
-      setForm({ businessAccountId: "", phoneNumberId: "", phoneNumber: "", accessToken: "", verifyToken: "" });
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to connect";
-      setError(msg);
-    } finally {
-      setConnecting(false);
-    }
+    connect(form, {
+      onSuccess: () => {
+        setForm(INITIAL_FORM);
+      },
+      onError: (err) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to connect";
+        setError(msg);
+      },
+    });
   };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     setError(null);
-    setDisconnecting(true);
-    try {
-      await whatsappService.disconnect();
-      setConnection(null);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to disconnect";
-      setError(msg);
-    } finally {
-      setDisconnecting(false);
-    }
+    disconnect(undefined, {
+      onError: (err) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to disconnect";
+        setError(msg);
+      },
+    });
   };
 
   return (
@@ -104,7 +91,7 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>

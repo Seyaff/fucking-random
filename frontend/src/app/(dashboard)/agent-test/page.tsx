@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { agentService } from "@/services/agent.service";
+import { useAgentTest } from "@/hooks/use-agent";
 import { Loader2, Send, Bot, User, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,8 +17,8 @@ interface ChatMessage {
 export default function AgentTestPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { mutateAsync: testAgent, isPending: loading } = useAgentTest();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,15 +31,12 @@ export default function AgentTestPage() {
     setInput("");
     setError(null);
     setMessages((prev) => [...prev, { role: "user", content: text }]);
-    setLoading(true);
     try {
-      const reply = await agentService.test(text);
+      const reply = await testAgent(text);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Agent failed to respond";
       setError(msg);
-    } finally {
-      setLoading(false);
     }
   };
 

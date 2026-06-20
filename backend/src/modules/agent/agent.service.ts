@@ -2,7 +2,10 @@ import OpenAI from "openai";
 import { Env } from "../../config/app.config";
 import { tools } from "./tools";
 
-const openai = new OpenAI({ apiKey: Env.OPENAI_API_KEY });
+const openai = new OpenAI({
+    apiKey: Env.GROQ_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1",
+});
 
 const SYSTEM_PROMPT = `You are Relay, an AI customer support agent.
 
@@ -15,33 +18,6 @@ RULES:
 6. If you cannot help, escalate to a human agent
 7. Keep responses concise and natural
 8. Never make up product information — use the tools to check`;
-
-function buildOpenAITools() {
-    return tools.map((t) => {
-        const shape = (t.parameters as any)._def.shape();
-        const properties: Record<string, any> = {};
-        const required: string[] = [];
-
-        for (const [key, schema] of Object.entries(shape)) {
-            const s = schema as any;
-            properties[key] = {
-                type: s._def.typeName === "ZodNumber" ? "number" : "string",
-                description: s._def.description,
-            };
-            const isOptional = s._def.typeName === "ZodOptional" || s.isNullable?.();
-            if (!isOptional) required.push(key);
-        }
-
-        return {
-            type: "function" as const,
-            function: {
-                name: t.name,
-                description: t.description,
-                parameters: { type: "object", properties, required },
-            },
-        };
-    });
-}
 
 export class AgentService {
     async processMessage(
@@ -59,9 +35,9 @@ export class AgentService {
         ];
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "llama-3.3-70b-versatile",
             messages,
-            tools: buildOpenAITools(),
+            tools: tools.map((t) => t.openai),
             tool_choice: "auto",
             temperature: 0.7,
             max_tokens: 500,
@@ -102,7 +78,7 @@ export class AgentService {
             }
 
             const finalResponse = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: "llama-3.3-70b-versatile",
                 messages,
                 temperature: 0.7,
                 max_tokens: 500,
