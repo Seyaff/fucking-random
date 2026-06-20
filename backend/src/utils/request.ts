@@ -6,8 +6,10 @@ export interface RequestMeta {
 }
 
 export function getRequestMeta(req: Request): RequestMeta {
-  return {
-    ip: req.ip || req.socket.remoteAddress,
-    userAgent: req.get("user-agent"),
-  };
+  const meta: RequestMeta = {};
+  const ip = req.ip || req.socket.remoteAddress;
+  const userAgent = req.get("user-agent");
+  if (ip) meta.ip = ip;
+  if (userAgent) meta.userAgent = userAgent;
+  return meta;
 }

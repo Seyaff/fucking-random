@@ -1,7 +1,6 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Env } from "./app.config";
-import UserModel from "../modules/user/user.model";
 import { AuthService } from "../modules/auth/auth.service";
 
 const authService = new AuthService();
@@ -21,12 +20,14 @@ passport.use(
                     return done(new Error("Google account has no public email"));
                 }
 
+                const photoUrl = profile.photos?.[0]?.value;
+
                 const user = await authService.loginOrSignupWithProvider({
-                    provider?: "google",
+                    provider: "google",
                     providerAccountId: profile.id,
                     email,
                     name: profile.displayName,
-                    avatarUrl: profile.photos?.[0]?.value,
+                    ...(photoUrl ? { avatarUrl: photoUrl } : {}),
                 });
 
                 return done(null, user);
@@ -36,18 +37,5 @@ passport.use(
         }
     )
 );
-
-passport.serializeUser((user: any, done) => {
-    done(null, user._id);
-});
-
-passport.deserializeUser(async (id: string, done) => {
-    try {
-        const user = await UserModel.findById(id);
-        done(null, user);
-    } catch (error) {
-        done(error, null);
-    }
-});
 
 export default passport;
