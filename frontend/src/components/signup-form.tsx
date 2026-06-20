@@ -1,11 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   FieldGroup,
   FieldDescription,
-  FieldSeparator,
 } from "@/components/ui/field"
 import { env } from "@/config/env"
 
@@ -24,9 +24,9 @@ export function SignupForm({
             <h1 className="text-xl font-bold">Create your Relay account</h1>
             <FieldDescription>
               Already have an account?{" "}
-              <a href="/login" className="underline hover:text-foreground">
+              <Link href="/login" className="underline hover:text-foreground">
                 Sign in
-              </a>
+              </Link>
             </FieldDescription>
           </div>
 
