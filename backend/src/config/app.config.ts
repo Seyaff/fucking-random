@@ -8,7 +8,7 @@ const appConfig = () => ({
   BASE_PATH: getEnv("BASE_PATH", "/api/v1"),
 
 
-  MONGO_URI: getEnv("MONGO_URI" , "mongodb+srv://seyaffxh:BKPMklTQpQMojY93@chat.ecmzbkj.mongodb.net/"),
+  MONGO_URI: getEnv("MONGO_URI"),
 
   FRONTEND_ORIGIN : getEnv("FRONTEND_ORIGIN"),
 
@@ -22,6 +22,7 @@ const appConfig = () => ({
   GOOGLE_CLIENT_SECRET : getEnv("GOOGLE_CLIENT_SECRET"),
   GOOGLE_CALLBACK_URL : getEnv("GOOGLE_CALLBACK_URL"),
 
+  REDIS_URL: getEnv("REDIS_URL", "redis://localhost:6379"),
 
 });
 

@@ -3,6 +3,8 @@ import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
 import { authenticate } from "../../middlewares/authenticate.middleware";
 import { WhatsAppService } from "./whatsapp.service";
 import { HTTPSTATUS } from "../../config/http.config";
+import { enqueueMessage } from "../../lib/worker";
+import WhatsAppAccountModel from "./whatsapp-account.model";
 
 const whatsappService = new WhatsAppService();
 
@@ -67,8 +69,16 @@ export class WhatsAppController {
         const message = await whatsappService.processIncomingMessage(req.body);
 
         if (message) {
-            // TODO: queue AI processing via BullMQ
-            console.log("Incoming message:", message);
+            const account = await WhatsAppAccountModel.findOne({
+                phoneNumberId: message.from,
+            });
+
+            if (account) {
+                await enqueueMessage({
+                    ...message,
+                    userId: account.userId.toString(),
+                });
+            }
         }
 
         return res.status(HTTPSTATUS.OK).json({ success: true });
