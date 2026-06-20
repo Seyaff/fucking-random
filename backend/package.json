@@ -4,7 +4,10 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node --files src/server.ts"
+    "dev": "nodemon --exec ts-node --files src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "lint": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
