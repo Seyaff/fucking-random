@@ -24,6 +24,8 @@ const appConfig = () => ({
 
   REDIS_URL: getEnv("REDIS_URL", "redis://localhost:6379"),
 
+  OPENAI_API_KEY: getEnv("OPENAI_API_KEY"),
+
 });
 
 

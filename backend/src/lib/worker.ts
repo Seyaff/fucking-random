@@ -1,18 +1,21 @@
 import { createWorker, messageQueue } from "./queue";
 import { WhatsAppService } from "../modules/whatsapp/whatsapp.service";
+import { AgentService } from "../modules/agent/agent.service";
 
 const whatsappService = new WhatsAppService();
+const agentService = new AgentService();
 
 export function startWorker() {
     createWorker(async (job) => {
-        const { from, sender, text, messageId } = job.data;
+        const { sender, text, userId } = job.data;
 
-        console.log(`Processing message from ${sender}: "${text}"`);
+        console.log(`[${job.id}] Processing from ${sender}: "${text}"`);
 
-        // TODO: Phase 3 - call AI agent, get reply
-        const reply = `Hi! Thanks for your message. We got your query: "${text}". One of our agents will get back to you shortly.`;
+        const reply = await agentService.processMessage(text);
 
-        await whatsappService.sendMessage(sender, reply, job.data.userId);
+        await whatsappService.sendMessage(sender, reply, userId);
+
+        console.log(`[${job.id}] Replied: "${reply.slice(0, 60)}..."`);
     });
 }
 
