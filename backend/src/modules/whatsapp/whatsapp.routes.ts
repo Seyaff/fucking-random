@@ -1,8 +1,17 @@
 import { Router } from "express";
-import { cont } from "./whatsapp.controller";
+import { authenticate } from "../../middlewares/authenticate.middleware";
+import { WhatsAppController } from "./whatsapp.controller";
 
-const whatsappRoutes = Router()
+const controller = new WhatsAppController();
+const whatsappRoutes = Router();
 
-whatsappRoutes.get("/test" , cont)
+// Webhook routes — must be before auth, Meta calls these without a token
+whatsappRoutes.get("/webhook", controller.webhookVerify);
+whatsappRoutes.post("/webhook", controller.webhookReceive);
 
-export default whatsappRoutes
+// Authenticated routes
+whatsappRoutes.post("/connect", authenticate, controller.connect);
+whatsappRoutes.post("/disconnect", authenticate, controller.disconnect);
+whatsappRoutes.get("/my-connection", authenticate, controller.myConnection);
+
+export default whatsappRoutes;

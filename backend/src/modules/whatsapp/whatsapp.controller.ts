@@ -1,9 +1,76 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
+import { authenticate } from "../../middlewares/authenticate.middleware";
+import { WhatsAppService } from "./whatsapp.service";
 import { HTTPSTATUS } from "../../config/http.config";
 
-export const cont = asyncHandler(async(req :Request , res: Response) => {
-    return res.status(HTTPSTATUS.OK).json({
-        message : "changed"
-    })
-})
+const whatsappService = new WhatsAppService();
+
+export class WhatsAppController {
+    connect = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const { phoneNumberId, phoneNumber, accessToken, verifyToken } = req.body;
+
+        const account = await whatsappService.connectAccount(userId, {
+            phoneNumberId,
+            phoneNumber,
+            accessToken,
+            verifyToken,
+        });
+
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            message: "WhatsApp connected successfully",
+            account: {
+                id: account._id,
+                phoneNumber: account.phoneNumber,
+                isConnected: account.isConnected,
+            },
+        });
+    });
+
+    disconnect = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const result = await whatsappService.disconnectAccount(userId);
+
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            ...result,
+        });
+    });
+
+    myConnection = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const connection = await whatsappService.getConnection(userId);
+
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            connection: connection || null,
+        });
+    });
+
+    webhookVerify = asyncHandler(async (req: Request, res: Response) => {
+        const mode = req.query["hub.mode"] as string | undefined;
+        const token = req.query["hub.verify_token"] as string | undefined;
+        const challenge = req.query["hub.challenge"] as string | undefined;
+
+        const result = whatsappService.verifyWebhook(mode, token, challenge);
+
+        if (result.verified && challenge) {
+            return res.status(HTTPSTATUS.OK).send(challenge);
+        }
+
+        return res.status(HTTPSTATUS.FORBIDDEN).send("Verification failed");
+    });
+
+    webhookReceive = asyncHandler(async (req: Request, res: Response) => {
+        const message = await whatsappService.processIncomingMessage(req.body);
+
+        if (message) {
+            // TODO: queue AI processing via BullMQ
+            console.log("Incoming message:", message);
+        }
+
+        return res.status(HTTPSTATUS.OK).json({ success: true });
+    });
+}

@@ -26,7 +26,7 @@ app.use(cors({
 }))
 app.use(passport.initialize())
 
-app.get(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
+app.use(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
 app.use(`${Env.BASE_PATH}/auth`, authRoutes)
 
 
