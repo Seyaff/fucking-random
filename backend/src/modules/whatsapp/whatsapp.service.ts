@@ -5,6 +5,27 @@ import WhatsAppAccountModel from "./whatsapp-account.model";
 const WHATSAPP_API_BASE = "https://graph.facebook.com/v22.0";
 
 export class WhatsAppService {
+    async verifyCredentials(accessToken: string, phoneNumberId: string) {
+        try {
+            const { data } = await axios.get(
+                `${WHATSAPP_API_BASE}/${phoneNumberId}`,
+                {
+                    params: {
+                        access_token: accessToken,
+                        fields: "id,display_phone_number,verified_name",
+                    },
+                }
+            );
+            return { valid: true, phoneNumber: data.display_phone_number as string };
+        } catch (err: unknown) {
+            if (axios.isAxiosError(err)) {
+                const msg = err.response?.data?.error?.message || err.message;
+                throw new BadRequestError(`Meta verification failed: ${msg}`);
+            }
+            throw new BadRequestError("Failed to verify WhatsApp credentials");
+        }
+    }
+
     async connectAccount(
         userId: string,
         data: {
@@ -15,12 +36,14 @@ export class WhatsAppService {
             verifyToken: string;
         }
     ) {
+        const verification = await this.verifyCredentials(data.accessToken, data.phoneNumberId);
+
         const existing = await WhatsAppAccountModel.findOne({ userId });
 
         if (existing) {
             existing.businessAccountId = data.businessAccountId;
             existing.phoneNumberId = data.phoneNumberId;
-            existing.phoneNumber = data.phoneNumber;
+            existing.phoneNumber = data.phoneNumber || verification.phoneNumber;
             existing.accessToken = data.accessToken;
             existing.verifyToken = data.verifyToken;
             existing.isConnected = true;
@@ -31,6 +54,7 @@ export class WhatsAppService {
         const account = await WhatsAppAccountModel.create({
             userId,
             ...data,
+            phoneNumber: data.phoneNumber || verification.phoneNumber,
             isConnected: true,
         });
 
