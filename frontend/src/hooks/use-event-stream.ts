@@ -41,7 +41,7 @@ export function useEventStream() {
   useEffect(() => {
     if (!accessToken) return;
 
-    const es = new EventSource(`${env.API_URL}/api/v1/events?token=${accessToken}`);
+    const es = new EventSource(`${env.API_URL}/events?token=${accessToken}`);
     esRef.current = es;
 
     const onEvent = (type: SseEventType) => (e: MessageEvent) => {
