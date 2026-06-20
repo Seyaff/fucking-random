@@ -2,9 +2,12 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
 import { authenticate } from "../../middlewares/authenticate.middleware";
 import { WhatsAppService } from "./whatsapp.service";
+import { ConversationService } from "../conversation/conversation.service";
 import { HTTPSTATUS } from "../../config/http.config";
 import { enqueueMessage } from "../../lib/worker";
 import WhatsAppAccountModel from "./whatsapp-account.model";
+
+const conversationService = new ConversationService();
 
 const whatsappService = new WhatsAppService();
 
@@ -77,9 +80,13 @@ export class WhatsAppController {
             });
 
             if (account) {
+                const userId = account.userId.toString();
+
+                await conversationService.addMessage(userId, message.sender, "user", message.text);
+
                 await enqueueMessage({
                     ...message,
-                    userId: account.userId.toString(),
+                    userId,
                 });
             }
         }
