@@ -2,6 +2,7 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IWhatsAppAccount extends Document {
     userId: Types.ObjectId;
+    businessAccountId: string;
     phoneNumberId: string;
     phoneNumber: string;
     accessToken: string;
@@ -20,6 +21,10 @@ const whatsappAccountSchema = new Schema<IWhatsAppAccount>(
             required: true,
             unique: true,
             index: true,
+        },
+        businessAccountId: {
+            type: String,
+            required: true,
         },
         phoneNumberId: {
             type: String,

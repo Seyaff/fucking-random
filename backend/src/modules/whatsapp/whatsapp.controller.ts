@@ -11,9 +11,10 @@ const whatsappService = new WhatsAppService();
 export class WhatsAppController {
     connect = asyncHandler(async (req: Request, res: Response) => {
         const userId = req.user!._id.toString();
-        const { phoneNumberId, phoneNumber, accessToken, verifyToken } = req.body;
+        const { businessAccountId, phoneNumberId, phoneNumber, accessToken, verifyToken } = req.body;
 
         const account = await whatsappService.connectAccount(userId, {
+            businessAccountId,
             phoneNumberId,
             phoneNumber,
             accessToken,
@@ -25,6 +26,8 @@ export class WhatsAppController {
             message: "WhatsApp connected successfully",
             account: {
                 id: account._id,
+                businessAccountId: account.businessAccountId,
+                phoneNumberId: account.phoneNumberId,
                 phoneNumber: account.phoneNumber,
                 isConnected: account.isConnected,
             },

@@ -8,6 +8,7 @@ export class WhatsAppService {
     async connectAccount(
         userId: string,
         data: {
+            businessAccountId: string;
             phoneNumberId: string;
             phoneNumber: string;
             accessToken: string;
@@ -17,6 +18,7 @@ export class WhatsAppService {
         const existing = await WhatsAppAccountModel.findOne({ userId });
 
         if (existing) {
+            existing.businessAccountId = data.businessAccountId;
             existing.phoneNumberId = data.phoneNumberId;
             existing.phoneNumber = data.phoneNumber;
             existing.accessToken = data.accessToken;

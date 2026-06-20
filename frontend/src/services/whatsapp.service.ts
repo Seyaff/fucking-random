@@ -2,6 +2,7 @@ import api from "./api";
 
 export interface WhatsAppConnection {
   _id: string;
+  businessAccountId: string;
   phoneNumber: string;
   phoneNumberId: string;
   isConnected: boolean;
@@ -15,6 +16,7 @@ export const whatsappService = {
   },
 
   connect: async (payload: {
+    businessAccountId: string;
     phoneNumberId: string;
     phoneNumber: string;
     accessToken: string;

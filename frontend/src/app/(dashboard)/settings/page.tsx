@@ -39,6 +39,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
+    businessAccountId: "",
     phoneNumberId: "",
     phoneNumber: "",
     accessToken: "",
@@ -62,7 +63,7 @@ export default function SettingsPage() {
     try {
       const result = await whatsappService.connect(form);
       setConnection(result.account);
-      setForm({ phoneNumberId: "", phoneNumber: "", accessToken: "", verifyToken: "" });
+      setForm({ businessAccountId: "", phoneNumberId: "", phoneNumber: "", accessToken: "", verifyToken: "" });
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to connect";
       setError(msg);
@@ -162,12 +163,14 @@ export default function SettingsPage() {
                       Meta Developer Console <ExternalLink className="size-3" />
                     </a>
                   </li>
-                  <li>Create a new app or use an existing one with WhatsApp product added</li>
+                  <li>Create a new app or use an existing one with <strong>WhatsApp</strong> product added</li>
+                  <li>Go to <strong>WhatsApp &rarr; Getting started</strong></li>
+                  <li>Copy the <strong>Business Account ID</strong> (WABA ID)</li>
+                  <li>Copy the <strong>Phone number ID</strong> and the <strong>phone number</strong> it belongs to</li>
+                  <li>Generate a <strong>Permanent Access Token</strong> from the same page (or use a temporary one for testing)</li>
                   <li>Go to <strong>WhatsApp &rarr; Configuration</strong></li>
                   <li>Set the callback URL to: <code className="bg-muted px-1 rounded text-[10px]">{WEBHOOK_URL}</code></li>
-                  <li>Set a verify token of your choice and enter it below</li>
-                  <li>From <strong>WhatsApp &rarr; Getting started</strong>, copy the <strong>Phone number ID</strong> and <strong>Temporary access token</strong></li>
-                  <li>Your WhatsApp Business phone number should also be listed there</li>
+                  <li>Set a <strong>Verify Token</strong> of your choice — enter the same value below</li>
                 </ol>
                 <div className="flex items-center gap-2 mt-2">
                   <CopyButton text={WEBHOOK_URL} />
@@ -176,6 +179,17 @@ export default function SettingsPage() {
               </div>
 
               <form onSubmit={handleConnect} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="businessAccountId" className="text-xs">WhatsApp Business Account ID (WABA ID)</Label>
+                  <Input
+                    id="businessAccountId"
+                    value={form.businessAccountId}
+                    onChange={(e) => setForm({ ...form, businessAccountId: e.target.value })}
+                    placeholder="e.g. 123456789012345"
+                    required
+                    className="h-9 text-sm"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="phoneNumberId" className="text-xs">Phone Number ID</Label>
@@ -194,7 +208,7 @@ export default function SettingsPage() {
                       id="phoneNumber"
                       value={form.phoneNumber}
                       onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-                      placeholder="e.g. 919876543210"
+                      placeholder="e.g. 12025550142"
                       required
                       className="h-9 text-sm"
                     />

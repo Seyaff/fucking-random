@@ -1,0 +1,16 @@
+name,sku,price,stock,unit,category,description
+Organic Almonds,ALM-001,12.99,80,lb,Nuts,Raw organic almonds
+Greek Yogurt,YOG-001,5.49,60,qt,Dairy,Plain Greek yogurt
+Sourdough Bread,BRD-001,4.99,40,loaf,Bakery,Artisan sourdough
+Cold Brew Coffee,COF-001,8.99,35,bottle,Beverages,Nitro cold brew coffee
+Avocado Oil,OIL-001,9.99,25,bottle,Oils,Extra virgin avocado oil
+Dark Chocolate,CHC-001,3.99,120,bar,Snacks,72% cacao dark chocolate
+Quinoa,QUN-001,6.99,45,lb,Grains,Organic white quinoa
+Mixed Berries,BER-001,4.49,55,lb,Produce,Frozen mixed berries
+Peanut Butter,PBT-001,7.99,70,jar,Spreads,Natural crunchy peanut butter
+Granola,GRN-001,5.99,65,lb,Breakfast,Honey almond granola
+Coconut Water,CWT-001,2.99,90,bottle,Beverages,Pure coconut water
+Hummus,HUM-001,4.49,50,container,Snacks,Classic hummus
+Tortilla Chips,CHP-001,3.49,100,bag,Snacks,Corn tortilla chips
+Maple Syrup,SYP-001,11.99,30,bottle,Condiments,Pure maple syrup
+Sparkling Water,SPW-001,1.49,200,can,Beverages,Unflavored sparkling water
