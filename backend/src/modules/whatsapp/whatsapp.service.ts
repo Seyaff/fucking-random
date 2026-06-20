@@ -84,11 +84,17 @@ export class WhatsAppService {
         return data;
     }
 
-    verifyWebhook(mode: string | undefined, token: string | undefined, challenge: string | undefined) {
-        if (mode === "subscribe" && token) {
-            return { verified: true, challenge };
+    async verifyWebhook(mode: string | undefined, token: string | undefined, challenge: string | undefined) {
+        if (mode !== "subscribe" || !token) {
+            return { verified: false };
         }
-        return { verified: false };
+
+        const account = await WhatsAppAccountModel.findOne({ verifyToken: token });
+        if (!account) {
+            return { verified: false };
+        }
+
+        return { verified: true, challenge };
     }
 
     async processIncomingMessage(payload: any) {

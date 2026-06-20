@@ -62,7 +62,7 @@ export class WhatsAppController {
         const token = req.query["hub.verify_token"] as string | undefined;
         const challenge = req.query["hub.challenge"] as string | undefined;
 
-        const result = whatsappService.verifyWebhook(mode, token, challenge);
+        const result = await whatsappService.verifyWebhook(mode, token, challenge);
 
         if (result.verified && challenge) {
             return res.status(HTTPSTATUS.OK).send(challenge);
