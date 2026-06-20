@@ -7,11 +7,14 @@ import { authService } from "@/services/auth.service";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import { Loader2 } from "lucide-react";
+import { useEventStream } from "@/hooks/use-event-stream";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, accessToken, isLoading, isInitialized, setUser, setLoading } =
     useAuthStore();
+
+  useEventStream();
 
   useEffect(() => {
     useAuthStore.getState().initialize();

@@ -7,6 +7,9 @@ import {
     escalateToHumanSchema,
 } from "./schemas";
 import ProductModel from "../../product/product.model";
+import { OrderService } from "../../order/order.service";
+
+const orderService = new OrderService();
 
 export interface Tool {
     name: string;
@@ -117,28 +120,32 @@ export const tools: Tool[] = [
             productId: { type: "string", description: "Product ID to order" },
             quantity: { type: "number", description: "Quantity to order" },
         }, ["customerName", "phone", "productId", "quantity"]),
-        handler: async (args: any) => {
+        handler: async (args: any, userId) => {
             const { customerName, phone, productId, quantity } = placeOrderSchema.parse(args);
+            if (!userId) return JSON.stringify({ success: false, message: "User not identified" });
 
-            const product = await ProductModel.findById(productId).lean();
-            if (!product) {
-                return JSON.stringify({ success: false, message: `Product with ID ${productId} not found` });
+            try {
+                const order = await orderService.createOrder(userId, {
+                    customerName,
+                    customerPhone: phone,
+                    productId,
+                    quantity,
+                });
+
+                const item = order.items[0]!;
+
+                return JSON.stringify({
+                    success: true,
+                    orderId: order.orderId,
+                    customerName,
+                    product: item.productName,
+                    quantity: item.quantity,
+                    total: order.totalAmount,
+                    message: `Order placed for ${item.quantity} of ${item.productName}. Total: $${order.totalAmount.toFixed(2)}. Order ID: ${order.orderId}. Status: ${order.status}`,
+                });
+            } catch (err: any) {
+                return JSON.stringify({ success: false, message: err.message });
             }
-
-            const total = product.price * quantity;
-            const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-
-            // TODO: save order to orders collection in Phase 4
-
-            return JSON.stringify({
-                success: true,
-                orderId,
-                customerName,
-                product: product.name,
-                quantity,
-                total,
-                message: `Order placed for ${quantity} ${product.unit}(s) of ${product.name}. Total: $${total.toFixed(2)}. Order ID: ${orderId}`,
-            });
         },
     },
     {
@@ -148,9 +155,27 @@ export const tools: Tool[] = [
         openai: buildOpenaiParams("get_order_status", "Check the status of an existing order.", {
             orderId: { type: "string", description: "Order ID to check status for" },
         }, ["orderId"]),
-        handler: async (args: any) => {
+        handler: async (args: any, userId) => {
             const { orderId } = getOrderStatusSchema.parse(args);
-            return JSON.stringify({ orderId, status: "processing", estimatedDelivery: "2-3 business days" });
+            if (!userId) return JSON.stringify({ found: false, message: "User not identified" });
+
+            try {
+                const order = await orderService.getOrderByOrderId(userId, orderId);
+                const item = order.items[0]!;
+
+                return JSON.stringify({
+                    found: true,
+                    orderId: order.orderId,
+                    customerName: order.customerName,
+                    product: item.productName,
+                    quantity: item.quantity,
+                    total: order.totalAmount,
+                    status: order.status,
+                    createdAt: order.createdAt,
+                });
+            } catch {
+                return JSON.stringify({ found: false, message: `Order ${orderId} not found` });
+            }
         },
     },
     {

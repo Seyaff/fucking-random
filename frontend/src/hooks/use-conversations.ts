@@ -5,7 +5,7 @@ export function useConversations() {
   return useQuery({
     queryKey: ["conversations"],
     queryFn: conversationService.list,
-    refetchInterval: 5000,
+    refetchInterval: 30_000,
   });
 }
 
@@ -14,7 +14,7 @@ export function useMessages(conversationId: string | null) {
     queryKey: ["messages", conversationId],
     queryFn: () => conversationService.getMessages(conversationId!),
     enabled: !!conversationId,
-    refetchInterval: 5000,
+    refetchInterval: 30_000,
   });
 }
 
@@ -23,8 +23,9 @@ export function useSendMessage() {
   return useMutation({
     mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) =>
       conversationService.sendMessage(conversationId, content),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["messages", variables.conversationId] });
     },
   });
 }

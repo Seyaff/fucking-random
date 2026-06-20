@@ -5,6 +5,7 @@ import { WhatsAppService } from "./whatsapp.service";
 import { ConversationService } from "../conversation/conversation.service";
 import { HTTPSTATUS } from "../../config/http.config";
 import { enqueueMessage } from "../../lib/worker";
+import { eventService } from "../../lib/event-service";
 import WhatsAppAccountModel from "./whatsapp-account.model";
 
 const conversationService = new ConversationService();
@@ -82,7 +83,15 @@ export class WhatsAppController {
             if (account) {
                 const userId = account.userId.toString();
 
-                await conversationService.addMessage(userId, message.sender, "user", message.text);
+                const msg = await conversationService.addMessage(userId, message.sender, "user", message.text);
+
+                eventService.emit(userId, {
+                    type: "new_message",
+                    data: {
+                        conversationId: msg.conversationId.toString(),
+                        customerPhone: message.sender,
+                    },
+                });
 
                 await enqueueMessage({
                     ...message,

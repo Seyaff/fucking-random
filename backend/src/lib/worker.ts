@@ -2,6 +2,7 @@ import { createWorker, messageQueue } from "./queue";
 import { WhatsAppService } from "../modules/whatsapp/whatsapp.service";
 import { AgentService } from "../modules/agent/agent.service";
 import { ConversationService } from "../modules/conversation/conversation.service";
+import { eventService } from "./event-service";
 
 const whatsappService = new WhatsAppService();
 const agentService = new AgentService();
@@ -17,7 +18,15 @@ export function startWorker() {
 
         await whatsappService.sendMessage(sender, reply, userId);
 
-        await conversationService.addMessage(userId, sender, "assistant", reply);
+        const msg = await conversationService.addMessage(userId, sender, "assistant", reply);
+
+        eventService.emit(userId, {
+            type: "new_message",
+            data: {
+                conversationId: msg.conversationId.toString(),
+                customerPhone: sender,
+            },
+        });
 
         console.log(`[${job.id}] Replied: "${reply.slice(0, 60)}..."`);
     });
