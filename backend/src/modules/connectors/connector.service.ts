@@ -43,6 +43,7 @@ export class ConnectorService {
             client_id: Env.SLACK_CLIENT_ID,
             redirect_uri: Env.SLACK_REDIRECT_URI,
             scope: SLACK_SCOPES,
+            user_scope: "channels:history,channels:read",
             state,
         });
         return `https://slack.com/oauth/v2/authorize?${params}`;
@@ -114,11 +115,13 @@ export class ConnectorService {
 
         const { access_token, refresh_token, expires_in, scope, team, authed_user } = tokenRes.data;
 
+        const userToken = authed_user?.access_token || access_token;
+
         await ConnectorModel.findOneAndUpdate(
             { userId: new Types.ObjectId(data.userId), provider: "slack" },
             {
                 $set: {
-                    accessToken: access_token,
+                    accessToken: userToken,
                     refreshToken: refresh_token || "",
                     tokenExpiry: expires_in ? new Date(Date.now() + expires_in * 1000) : undefined,
                     isConnected: true,
