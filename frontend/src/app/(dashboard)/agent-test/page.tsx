@@ -1,49 +1,146 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useAgentTest } from "@/hooks/use-agent";
-import { Loader2, Send, Bot, User, AlertCircle } from "lucide-react";
+import { env } from "@/config/env";
+import { useAuthStore } from "@/stores/auth-store";
+import { Loader2, Send, Bot, User, AlertCircle, StopCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  streaming?: boolean;
 }
 
 export default function AgentTestPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const { mutateAsync: testAgent, isPending: loading } = useAgentTest();
+  const [streaming, setStreaming] = useState(false);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || streaming) return;
     setInput("");
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+
+    const userMsg: ChatMessage = { role: "user", content: text };
+    const assistantMsg: ChatMessage = { role: "assistant", content: "", streaming: true };
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
+    setStreaming(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const reply = await testAgent(text);
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      const response = await fetch(`${env.API_URL}/agent/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ message: text }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Stream request failed");
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+
+          try {
+            const data = JSON.parse(json);
+            if (data.token) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last?.streaming) {
+                  last.content += data.token;
+                }
+                return updated;
+              });
+            }
+            if (data.done) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last) last.streaming = false;
+                return updated;
+              });
+            }
+          } catch {}
+        }
+      }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Agent failed to respond";
-      setError(msg);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last?.streaming) {
+            last.streaming = false;
+            if (!last.content) last.content = "(Cancelled)";
+          }
+          return updated;
+        });
+      } else {
+        const msg = (err as { message?: string })?.message || "Agent failed to respond";
+        setError(msg);
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last?.streaming) {
+            last.streaming = false;
+            if (!last.content) last.content = "(Error)";
+          }
+          return updated;
+        });
+      }
+    } finally {
+      setStreaming(false);
+      abortRef.current = null;
     }
-  };
+  }, [input, streaming, accessToken]);
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (streaming) {
+        handleStop();
+      } else {
+        handleSend();
+      }
     }
   };
 
@@ -65,7 +162,7 @@ export default function AgentTestPage() {
               </div>
               <div>
                 <CardTitle className="text-sm">Relay AI Agent</CardTitle>
-                <CardDescription className="text-[10px]">GPT-4o-mini · connected</CardDescription>
+                <CardDescription className="text-[10px]">Llama 3.3 70B · streaming</CardDescription>
               </div>
             </div>
             <Badge variant="outline" className="text-[10px] gap-1">
@@ -104,23 +201,14 @@ export default function AgentTestPage() {
                 "rounded-2xl px-3.5 py-2 text-sm whitespace-pre-wrap",
                 m.role === "user"
                   ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+                  : "bg-muted",
+                m.streaming && "border-l-2 border-primary animate-pulse"
               )}>
                 {m.content}
+                {m.streaming && <span className="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-blink" />}
               </div>
             </div>
           ))}
-
-          {loading && (
-            <div className="flex gap-2 max-w-[80%]">
-              <div className="size-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <Bot className="size-3.5" />
-              </div>
-              <div className="rounded-2xl bg-muted px-4 py-3">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
@@ -139,12 +227,18 @@ export default function AgentTestPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about products, prices, or place an order..."
-              disabled={loading}
+              disabled={streaming}
               className="flex-1"
             />
-            <Button size="icon" onClick={handleSend} disabled={!input.trim() || loading}>
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            </Button>
+            {streaming ? (
+              <Button size="icon" variant="destructive" onClick={handleStop}>
+                <StopCircle className="size-4" />
+              </Button>
+            ) : (
+              <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+                <Send className="size-4" />
+              </Button>
+            )}
           </div>
         </CardFooter>
       </Card>

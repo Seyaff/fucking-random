@@ -108,6 +108,41 @@ export class WhatsAppService {
         return data;
     }
 
+    async sendInteractiveButtons(to: string, body: string, buttons: { id: string; title: string }[], userId: string) {
+        const account = await WhatsAppAccountModel.findOne({ userId });
+
+        if (!account || !account.isConnected) {
+            throw new BadRequestError("WhatsApp not connected");
+        }
+
+        const rows = buttons.map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title.slice(0, 20) },
+        }));
+
+        const { data } = await axios.post(
+            `${WHATSAPP_API_BASE}/${account.phoneNumberId}/messages`,
+            {
+                messaging_product: "whatsapp",
+                to,
+                type: "interactive",
+                interactive: {
+                    type: "button",
+                    body: { text: body },
+                    action: { buttons: rows },
+                },
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${account.accessToken}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        return data;
+    }
+
     async verifyWebhook(mode: string | undefined, token: string | undefined, challenge: string | undefined) {
         if (mode !== "subscribe" || !token) {
             return { verified: false };
@@ -129,15 +164,32 @@ export class WhatsAppService {
 
         if (!message || !from) return null;
 
-        const text = message.text?.body || "";
         const sender = message.from;
+        const messageId = message.id;
+        const timestamp = message.timestamp;
+
+        let text = message.text?.body || "";
+        let isInteractiveButton = false;
+        let buttonId = "";
+
+        if (message.interactive?.button_reply) {
+            text = message.interactive.button_reply.title;
+            buttonId = message.interactive.button_reply.id;
+            isInteractiveButton = true;
+        } else if (message.interactive?.list_reply) {
+            text = message.interactive.list_reply.title;
+            buttonId = message.interactive.list_reply.id;
+            isInteractiveButton = true;
+        }
 
         return {
             from,
             sender,
             text,
-            messageId: message.id,
-            timestamp: message.timestamp,
+            buttonId: isInteractiveButton ? buttonId : undefined,
+            isInteractive: isInteractiveButton,
+            messageId,
+            timestamp,
         };
     }
 

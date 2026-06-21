@@ -26,7 +26,7 @@ export class AgentController {
         const history = await conversationService.getConversationHistory(userId, TEST_CUSTOMER);
         const reply = await agentService.processMessage(message, userId, { conversationHistory: history });
 
-        const agentMsg = await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", reply);
+        const agentMsg = await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", reply.text);
 
         eventService.emit(userId, {
             type: "new_message",
@@ -35,7 +35,33 @@ export class AgentController {
 
         return res.status(HTTPSTATUS.OK).json({
             success: true,
-            reply,
+            reply: reply.text,
         });
+    });
+
+    stream = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const { message } = req.body;
+
+        if (!message) {
+            return res.status(HTTPSTATUS.BAD_REQUEST).json({ success: false, message: "Message is required" });
+        }
+
+        res.writeHead(HTTPSTATUS.OK, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+            "X-Accel-Buffering": "no",
+        });
+
+        let fullReply = "";
+
+        await agentService.processMessageStream(message, userId, (token) => {
+            fullReply += token;
+            res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        });
+
+        res.write(`data: ${JSON.stringify({ done: true, full: fullReply })}\n\n`);
+        res.end();
     });
 }

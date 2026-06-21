@@ -8,5 +8,6 @@ const agentRoutes = Router();
 agentRoutes.use(authenticate);
 
 agentRoutes.post("/test", controller.test);
+agentRoutes.post("/stream", controller.stream);
 
 export default agentRoutes;

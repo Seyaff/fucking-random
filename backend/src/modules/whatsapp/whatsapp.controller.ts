@@ -82,20 +82,27 @@ export class WhatsAppController {
 
             if (account) {
                 const userId = account.userId.toString();
+                const text = message.isInteractive && message.buttonId
+                    ? `__BUTTON__:${message.buttonId}`
+                    : message.text;
 
-                const msg = await conversationService.addMessage(userId, message.sender, "user", message.text);
+                const msg = await conversationService.addMessage(userId, message.sender, "user", text);
 
                 eventService.emit(userId, {
                     type: "new_message",
                     data: {
                         conversationId: msg.conversationId.toString(),
                         customerPhone: message.sender,
-                        preview: message.text.slice(0, 100),
+                        preview: text.slice(0, 100),
                     },
                 });
 
                 await enqueueMessage({
-                    ...message,
+                    from: message.from,
+                    sender: message.sender,
+                    text,
+                    messageId: message.messageId,
+                    timestamp: message.timestamp,
                     userId,
                 });
             }
