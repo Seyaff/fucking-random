@@ -50,14 +50,20 @@ export const tools: Tool[] = [
             if (!userId) return JSON.stringify({ found: false, message: "User not identified" });
 
             const q = query.trim();
+            const words = q.split(/\s+/).filter(Boolean);
+
+            const conditions = words.map((word) => ({
+                $or: [
+                    { name: { $regex: word, $options: "i" } },
+                    { sku: { $regex: word, $options: "i" } },
+                    { category: { $regex: word, $options: "i" } },
+                ],
+            }));
+
             const products = await ProductModel.find({
                 userId,
                 isActive: true,
-                $or: [
-                    { name: { $regex: q, $options: "i" } },
-                    { sku: { $regex: q, $options: "i" } },
-                    { category: { $regex: q, $options: "i" } },
-                ],
+                ...(conditions.length > 0 ? { $and: conditions } : {}),
             })
                 .limit(10)
                 .lean();
