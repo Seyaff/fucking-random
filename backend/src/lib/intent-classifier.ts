@@ -1,3 +1,6 @@
+import OpenAI from "openai";
+import { Env } from "../config/app.config";
+
 export type Intent =
     | "greeting"
     | "product_search"
@@ -9,25 +12,54 @@ export type Intent =
     | "escalate"
     | "chitchat";
 
-const GREETING = /\b(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|yo)\b/i;
-const PRODUCT_SEARCH = /\b(what\s*(product|item|you\s*have)|show|list|available|catalog|do\s*you\s*(have|sell)|got\s*any)\b|^products?$/i;
-const PRICE_CHECK = /\b(price|cost|how\s*much|rate|what.*price)\b/i;
-const PLACE_ORDER = /\b(i\s*want|i\s*need|i.*(like|would).*order|place.*order|buy|purchase|order|send\s*me)\b/i;
-const ORDER_STATUS = /\b(order.*status|where.*order|track|delivery|shipped)\b/i;
-const CONFIRM = /\b(yes|sure|go\s*ahead|okay|ok|do\s*it|please|yeah|yep|correct|right)\b/i;
-const CANCEL = /\b(no|nah|never\s*mind|cancel|forget|stop|nope|not\s*now)\b/i;
-const ESCALATE = /\b(human|agent|person|talk.*to|speak.*to|escalate|manager|real\s*person)\b/i;
+const openai = new OpenAI({
+    apiKey: Env.GROQ_API_KEY,
+    baseURL: "https://api.groq.com/openai/v1",
+});
 
-export function classifyIntent(message: string): Intent {
+const QUICK_GREETING = /\b(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|yo|bye|goodbye)\b/i;
+const QUICK_CANCEL = /\b(no|nah|nope|cancel|forget|stop|never\s*mind)\b/i;
+const QUICK_ESCALATE = /\b(human|agent|talk\s*to\s*a\s*(human|person)|real\s*person|speak\s*to\s*(manager|human))\b/i;
+
+const CLASSIFY_PROMPT = `Classify the user's intent into exactly ONE of these labels:
+
+- greeting: casual greeting or farewell (hi, hello, bye, good morning, thanks)
+- product_search: asking what products exist, what's available, catalog, inventory, what you sell
+- price_check: asking for price/cost of a specific product
+- place_order: wanting to buy, order, purchase something
+- order_status: asking about existing order delivery status, tracking
+- confirm: confirming, agreeing, saying yes
+- cancel: declining, saying no, canceling
+- escalate: wanting to speak to a human agent or manager
+- chitchat: anything else — casual conversation, off-topic questions
+
+Reply with ONLY the label, nothing else.`;
+
+export async function classifyIntent(message: string): Promise<Intent> {
     const text = message.trim();
 
-    if (ESCALATE.test(text)) return "escalate";
-    if (GREETING.test(text)) return "greeting";
-    if (ORDER_STATUS.test(text)) return "order_status";
-    if (PLACE_ORDER.test(text) || CONFIRM.test(text) && text.length < 20) return "place_order";
-    if (PRICE_CHECK.test(text)) return "price_check";
-    if (PRODUCT_SEARCH.test(text)) return "product_search";
-    if (CANCEL.test(text)) return "cancel";
+    if (QUICK_ESCALATE.test(text)) return "escalate";
+    if (QUICK_CANCEL.test(text) && text.length < 30) return "cancel";
+    if (QUICK_GREETING.test(text) && text.length < 30) return "greeting";
 
-    return "chitchat";
+    try {
+        const response = await openai.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: [
+                { role: "system", content: CLASSIFY_PROMPT },
+                { role: "user", content: text },
+            ],
+            temperature: 0,
+            max_tokens: 10,
+        });
+
+        const label = response.choices[0]?.message?.content?.trim().toLowerCase() as Intent | undefined;
+        if (label && ["greeting", "product_search", "price_check", "place_order", "order_status", "confirm", "cancel", "escalate", "chitchat"].includes(label)) {
+            return label;
+        }
+
+        return "chitchat";
+    } catch {
+        return "chitchat";
+    }
 }
