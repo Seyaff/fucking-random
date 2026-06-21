@@ -15,6 +15,7 @@ import conversationRoutes from "./modules/conversation/conversation.routes"
 import orderRoutes from "./modules/order/order.routes"
 import eventRoutes from "./modules/events/event.routes"
 import whatsappRoutes from "./modules/whatsapp/whatsapp.routes"
+import connectorRoutes from "./modules/connectors/connector.routes"
 
 dns.setServers(["1.1.1.1" , "8.8.8.8"])
 
@@ -38,6 +39,7 @@ app.use(`${Env.BASE_PATH}/events` , eventRoutes )
 app.use(`${Env.BASE_PATH}/orders` , orderRoutes )
 app.use(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
 app.use(`${Env.BASE_PATH}/auth`, authRoutes)
+app.use(`${Env.BASE_PATH}/connectors`, connectorRoutes)
 
 
 app.use(errorHandler)

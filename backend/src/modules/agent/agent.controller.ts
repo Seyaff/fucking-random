@@ -54,12 +54,17 @@ export class AgentController {
             "X-Accel-Buffering": "no",
         });
 
+        await conversationService.addMessage(userId, "test-agent", "user", message);
+        const history = await conversationService.getConversationHistory(userId, "test-agent");
+
         let fullReply = "";
 
         await agentService.processMessageStream(message, userId, (token) => {
             fullReply += token;
             res.write(`data: ${JSON.stringify({ token })}\n\n`);
-        });
+        }, { conversationHistory: history });
+
+        await conversationService.addMessage(userId, "test-agent", "assistant", fullReply);
 
         res.write(`data: ${JSON.stringify({ done: true, full: fullReply })}\n\n`);
         res.end();

@@ -28,13 +28,15 @@ You MUST use the available tools to answer questions — never make up product n
 
 RULES:
 - Customer asks about a product by name → get_product_info(query:"<product name>")
-- Customer wants to buy/order → first get_product_info to find the product and get the correct ID, then place_order
+- Customer wants to buy/order → first get_product_info to find the product and get the correct ID and price, then if all details are known call place_order. If you lack customerName, phone, or productId, ask the customer politely for what's missing.
 - Customer asks about an existing order → get_order_status
 - Customer asks for price → get_product_info
 - Customer says "talk to human" → escalate_to_human
 - For everything else (greetings, thanks, casual chat) → reply_to_customer
 
-Keep responses VERY short — 1-2 sentences. Be warm and natural.`;
+IMPORTANT: When the customer says "yes" or confirms they want to order, check the conversation history — they may have already named the product. Use get_product_info with the mentioned product name to find the correct productId, then ask for any remaining missing details (name, phone) before calling place_order.
+
+Keep responses VERY short — 1-2 sentences. Be warm and natural. Use the customer's language (Hindi/English mix is fine).`;
 
 const QUICK_ESCALATE = /\b(human|agent|talk\s*to\s*(a\s*)?(human|person)|real\s*person|speak\s*to\s*(manager|human))\b/i;
 
@@ -78,6 +80,14 @@ export class AgentService {
             return { text: "I'm transferring you to a human agent. Someone will be with you shortly." };
         }
 
+        const historyMessages = (context?.conversationHistory ?? []).slice(-10).map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+        }));
+
+        const lastHistory = historyMessages[historyMessages.length - 1];
+        const shouldAppendUser = !lastHistory || lastHistory.role !== "user" || lastHistory.content !== text;
+
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
             {
                 role: "system",
@@ -85,11 +95,8 @@ export class AgentService {
                     ? `${SYSTEM_PROMPT}\n\nThe customer is replying to this message you sent just now:\n${context.templateContext}`
                     : SYSTEM_PROMPT,
             },
-            ...(context?.conversationHistory ?? []).slice(-10).map((m) => ({
-                role: m.role as "user" | "assistant",
-                content: m.content,
-            })),
-            { role: "user", content: text },
+            ...historyMessages,
+            ...(shouldAppendUser ? [{ role: "user" as const, content: text }] : []),
         ];
 
         const toolDefinitions = tools.map((t) => t.openai);
@@ -108,7 +115,7 @@ export class AgentService {
 
         messages.push(choice);
 
-        let onlyReplyToCustomer = choice.tool_calls.length === 1;
+        let onlyReplyToCustomer = true;
 
         for (const call of choice.tool_calls) {
             if (call.type !== "function") continue;
@@ -166,22 +173,39 @@ export class AgentService {
     async processMessageStream(
         message: string,
         userId: string,
-        onToken: (token: string) => void
-    ): Promise<void> {
-        if (message === "__GREETING__") {
-            onToken("Hello! How can I help you today?");
-            return;
+        onToken: (token: string) => void,
+        context?: {
+            conversationHistory?: { role: "user" | "assistant"; content: string }[];
         }
-
+    ): Promise<void> {
         const text = message.trim();
         if (!text || !userId) {
             onToken("Please log in first.");
             return;
         }
 
+        if (QUICK_ESCALATE.test(text)) {
+            onToken("I'm transferring you to a human agent. Someone will be with you shortly.");
+            return;
+        }
+
+        if (message === "__GREETING__") {
+            onToken("Hello! How can I help you today?");
+            return;
+        }
+
+        const historyMessages = (context?.conversationHistory ?? []).slice(-10).map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+        }));
+
+        const lastHistory = historyMessages[historyMessages.length - 1];
+        const shouldAppendUser = !lastHistory || lastHistory.role !== "user" || lastHistory.content !== text;
+
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: text },
+            ...historyMessages,
+            ...(shouldAppendUser ? [{ role: "user" as const, content: text }] : []),
         ];
 
         const toolDefinitions = tools.map((t) => t.openai);
@@ -203,6 +227,8 @@ export class AgentService {
 
         messages.push(choice);
 
+        let onlyReplyToCustomer = true;
+
         for (const call of choice.tool_calls) {
             if (call.type !== "function") continue;
             const fn = call.function as { name: string; arguments: string };
@@ -215,6 +241,8 @@ export class AgentService {
                 });
                 continue;
             }
+
+            if (fn.name !== "reply_to_customer") onlyReplyToCustomer = false;
 
             try {
                 const args = JSON.parse(fn.arguments);
@@ -231,6 +259,19 @@ export class AgentService {
                     tool_call_id: call.id,
                     content: JSON.stringify({ error: err.message ?? "Invalid arguments" }),
                 });
+            }
+        }
+
+        if (onlyReplyToCustomer) {
+            const lastTool = messages[messages.length - 1];
+            if (lastTool?.role === "tool") {
+                try {
+                    const parsed = JSON.parse(lastTool.content as string);
+                    if (parsed.reply) {
+                        onToken(parsed.reply);
+                        return;
+                    }
+                } catch {}
             }
         }
 

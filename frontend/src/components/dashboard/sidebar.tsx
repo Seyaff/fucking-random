@@ -17,6 +17,7 @@ import {
   Bot,
   Menu,
   X,
+  Cable,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
   { href: "/agent-test", label: "Test Agent", icon: Bot },
+  { href: "/connectors", label: "Connectors", icon: Cable },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -161,10 +161,10 @@ export const tools: Tool[] = [
         parameters: placeOrderSchema,
         openai: buildOpenaiParams("place_order", "Place a customer order after confirming product and quantity.", {
             customerName: { type: "string", description: "Customer's full name" },
-            phone: { type: "string", description: "Customer's phone number" },
+            phone: { type: "string", description: "Customer's phone number (optional)" },
             productId: { type: "string", description: "Product ID to order" },
             quantity: { type: "number", description: "Quantity to order" },
-        }, ["customerName", "phone", "productId", "quantity"]),
+        }, ["customerName", "productId", "quantity"]),
         handler: async (args: any, userId) => {
             const { customerName, phone, productId, quantity } = placeOrderSchema.parse(args);
             if (!userId) return JSON.stringify({ success: false, message: "User not identified" });
@@ -172,7 +172,7 @@ export const tools: Tool[] = [
             try {
                 const order = await orderService.createOrder(userId, {
                     customerName,
-                    customerPhone: phone,
+                    customerPhone: phone || "WhatsApp customer",
                     productId,
                     quantity,
                 });

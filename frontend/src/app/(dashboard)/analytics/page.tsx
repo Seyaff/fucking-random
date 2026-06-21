@@ -7,6 +7,7 @@ import { ConversationsChart } from "@/components/analytics/conversations-chart";
 import { PipelineChart } from "@/components/analytics/pipeline-chart";
 import { FirstResponseTime } from "@/components/analytics/first-response-time";
 import { RecentActivity } from "@/components/analytics/recent-activity";
+import { ConnectorData } from "@/components/connectors/connector-data";
 
 export default function AnalyticsPage() {
   return (
@@ -54,6 +55,8 @@ export default function AnalyticsPage() {
         <FirstResponseTime />
         <RecentActivity />
       </div>
+
+      <ConnectorData />
     </div>
   );
 }

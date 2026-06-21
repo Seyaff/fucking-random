@@ -29,6 +29,12 @@ const appConfig = () => ({
   RESEND_API_KEY: getEnv("RESEND_API_KEY", ""),
   RESEND_FROM_EMAIL: getEnv("RESEND_FROM_EMAIL", "Relay <onboarding@resend.dev>"),
 
+  GMAIL_REDIRECT_URI: getEnv("GMAIL_REDIRECT_URI", ""),
+
+  SLACK_CLIENT_ID: getEnv("SLACK_CLIENT_ID", ""),
+  SLACK_CLIENT_SECRET: getEnv("SLACK_CLIENT_SECRET", ""),
+  SLACK_REDIRECT_URI: getEnv("SLACK_REDIRECT_URI", ""),
+
 });
 
 

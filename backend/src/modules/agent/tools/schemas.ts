@@ -10,7 +10,7 @@ export const checkPriceSchema = z.object({
 
 export const placeOrderSchema = z.object({
     customerName: z.string().describe("Customer's full name"),
-    phone: z.string().describe("Customer's phone number"),
+    phone: z.string().optional().describe("Customer's phone number (omit if unknown)"),
     productId: z.string().describe("Product ID to order"),
     quantity: z.number().int().positive().describe("Quantity to order"),
 });
