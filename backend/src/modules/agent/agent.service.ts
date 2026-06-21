@@ -7,20 +7,20 @@ const openai = new OpenAI({
     baseURL: "https://api.groq.com/openai/v1",
 });
 
-const SYSTEM_PROMPT = `You are Relay, a helpful AI customer support agent for a business. You have access to tools that let you search products, check prices, place orders, and check order status.
+const SYSTEM_PROMPT = `You are Relay, a helpful AI customer support agent for a business.
 
-When a customer messages you:
-- If they ask what's available or what you sell → use get_product_info
-- If they want to buy something → find the product first, then place the order after confirming details
-- If they ask about price → use get_product_info and share the price
-- If they ask about an existing order → use get_order_status
-- If they need a human → use escalate_to_human
-- For casual conversation or greetings → just respond naturally
+You MUST use the available tools to answer questions — never make up product names, prices, stock, or order details.
 
-Rules:
-- Keep responses VERY short — 1-2 sentences. Be warm and natural.
-- Never make up product names, prices, or order details — always use the tools.
-- If a tool returns an error or no results, tell the customer honestly and ask how else you can help.`;
+RULES:
+- Customer asks "what products" / "catalog" / "what do you have" → get_product_info(query:"")
+- Customer asks about a product by name → get_product_info(query:"<product name>")
+- Customer wants to buy/order → first get_product_info to find the product and get the correct ID, then place_order
+- Customer asks about an existing order → get_order_status
+- Customer asks for price → get_product_info
+- Customer says "talk to human" → escalate_to_human
+- For everything else (greetings, thanks, casual chat) → reply_to_customer
+
+Keep responses VERY short — 1-2 sentences. Be warm and natural.`;
 
 const QUICK_GREETING = /^(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|yo|bye|goodbye|thanks?|thank\s*you)[\s!.?]*$/i;
 const QUICK_ESCALATE = /\b(human|agent|talk\s*to\s*(a\s*)?(human|person)|real\s*person|speak\s*to\s*(manager|human))\b/i;
@@ -53,7 +53,7 @@ export class AgentService {
                     ? `${SYSTEM_PROMPT}\n\nThe customer is replying to this message you sent just now:\n${context.templateContext}`
                     : SYSTEM_PROMPT,
             },
-            ...(context?.conversationHistory ?? []).slice(-6).map((m) => ({
+            ...(context?.conversationHistory ?? []).slice(-10).map((m) => ({
                 role: m.role as "user" | "assistant",
                 content: m.content,
             })),
@@ -66,58 +66,68 @@ export class AgentService {
             model: "llama-3.3-70b-versatile",
             messages,
             tools: toolDefinitions,
-            tool_choice: "auto",
-            temperature: 0.3,
+            tool_choice: "required",
+            temperature: 0.1,
             max_tokens: 400,
         });
 
         const choice = response.choices[0]?.message;
-        if (!choice) return "I'm not sure how to respond to that.";
+        if (!choice || !choice.tool_calls) return "I'm not sure how to respond to that.";
 
-        if (choice.tool_calls && choice.tool_calls.length > 0) {
-            messages.push(choice);
+        messages.push(choice);
 
-            for (const call of choice.tool_calls) {
-                if (call.type !== "function") continue;
-                const fn = call.function as { name: string; arguments: string };
-                const tool = tools.find((t) => t.name === fn.name);
-                if (!tool) {
-                    messages.push({
-                        role: "tool",
-                        tool_call_id: call.id,
-                        content: JSON.stringify({ error: `Unknown tool: ${fn.name}` }),
-                    });
-                    continue;
-                }
+        let onlyReplyToCustomer = choice.tool_calls.length === 1;
 
-                try {
-                    const args = JSON.parse(fn.arguments);
-                    const validated = tool.parameters.parse(args);
-                    const result = await tool.handler(validated, userId);
-                    messages.push({
-                        role: "tool",
-                        tool_call_id: call.id,
-                        content: result,
-                    });
-                } catch (err: any) {
-                    messages.push({
-                        role: "tool",
-                        tool_call_id: call.id,
-                        content: JSON.stringify({ error: err.message ?? "Invalid arguments" }),
-                    });
-                }
+        for (const call of choice.tool_calls) {
+            if (call.type !== "function") continue;
+            const fn = call.function as { name: string; arguments: string };
+            const tool = tools.find((t) => t.name === fn.name);
+            if (!tool) {
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: JSON.stringify({ error: `Unknown tool: ${fn.name}` }),
+                });
+                continue;
             }
 
-            const finalResponse = await openai.chat.completions.create({
-                model: "llama-3.3-70b-versatile",
-                messages,
-                temperature: 0.5,
-                max_tokens: 200,
-            });
+            if (fn.name !== "reply_to_customer") onlyReplyToCustomer = false;
 
-            return finalResponse.choices[0]?.message?.content || "Let me check on that for you.";
+            try {
+                const args = JSON.parse(fn.arguments);
+                const validated = tool.parameters.parse(args);
+                const result = await tool.handler(validated, userId);
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: result,
+                });
+            } catch (err: any) {
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: JSON.stringify({ error: err.message ?? "Invalid arguments" }),
+                });
+            }
         }
 
-        return choice.content || "I'm not sure how to respond to that.";
+        if (onlyReplyToCustomer) {
+            const lastTool = messages[messages.length - 1];
+            if (lastTool?.role === "tool") {
+                try {
+                    const parsed = JSON.parse(lastTool.content as string);
+                    if (parsed.reply) return parsed.reply;
+                } catch {}
+            }
+        }
+
+        const finalResponse = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages,
+            temperature: 0.3,
+            max_tokens: 200,
+        });
+
+        return finalResponse.choices[0]?.message?.content || "Let me check on that for you.";
     }
 }

@@ -22,3 +22,7 @@ export const getOrderStatusSchema = z.object({
 export const escalateToHumanSchema = z.object({
     reason: z.string().describe("Why this needs a human agent"),
 });
+
+export const replyToCustomerSchema = z.object({
+    message: z.string().describe("Your brief, friendly response to the customer"),
+});

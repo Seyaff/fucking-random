@@ -38,6 +38,24 @@ export class ConversationService {
         return conversation;
     }
 
+    async getConversationHistory(userId: string, customerPhone: string) {
+        const conversation = await ConversationModel.findOne({
+            userId: new Types.ObjectId(userId),
+            customerPhone,
+        });
+        if (!conversation) return [];
+
+        const messages = await MessageModel.find({ conversationId: conversation._id })
+            .sort({ createdAt: 1 })
+            .limit(20)
+            .lean();
+
+        return messages.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+        }));
+    }
+
     async addMessage(
         userId: string,
         customerPhone: string,

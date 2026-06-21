@@ -6,6 +6,7 @@ import {
     placeOrderSchema,
     getOrderStatusSchema,
     escalateToHumanSchema,
+    replyToCustomerSchema,
 } from "./schemas";
 import ProductModel from "../../product/product.model";
 import { OrderService } from "../../order/order.service";
@@ -232,6 +233,18 @@ export const tools: Tool[] = [
         handler: async (args: any) => {
             const { reason } = escalateToHumanSchema.parse(args);
             return JSON.stringify({ escalated: true, message: `Escalated to human agent. Reason: ${reason}. A team member will reach out shortly.` });
+        },
+    },
+    {
+        name: "reply_to_customer",
+        description: "Respond directly to the customer without any database lookup. Use for greetings, casual chat, confirmations, goodbyes, and general conversation.",
+        parameters: replyToCustomerSchema,
+        openai: buildOpenaiParams("reply_to_customer", "Reply to the customer directly — no database action needed.", {
+            message: { type: "string", description: "Your brief, friendly response (1-2 sentences)" },
+        }, ["message"]),
+        handler: async (args: any) => {
+            const { message } = replyToCustomerSchema.parse(args);
+            return JSON.stringify({ reply: message });
         },
     },
 ];

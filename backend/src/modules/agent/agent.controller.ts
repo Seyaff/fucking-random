@@ -23,7 +23,8 @@ export class AgentController {
 
         await conversationService.addMessage(userId, TEST_CUSTOMER, "user", message);
 
-        const reply = await agentService.processMessage(message, userId);
+        const history = await conversationService.getConversationHistory(userId, TEST_CUSTOMER);
+        const reply = await agentService.processMessage(message, userId, { conversationHistory: history });
 
         const agentMsg = await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", reply);
 

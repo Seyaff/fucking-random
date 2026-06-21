@@ -14,7 +14,8 @@ export function startWorker() {
 
         console.log(`[${job.id}] Processing from ${sender}: "${text}"`);
 
-        const reply = await agentService.processMessage(text, userId);
+        const history = await conversationService.getConversationHistory(userId, sender);
+        const reply = await agentService.processMessage(text, userId, { conversationHistory: history });
 
         await whatsappService.sendMessage(sender, reply, userId);
 
