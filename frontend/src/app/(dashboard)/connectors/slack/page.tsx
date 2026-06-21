@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Hash, Loader2, AlertCircle, MessageSquare, ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { connectorService } from "@/services/connector.service";
 import { useConnectorStatuses } from "@/hooks/use-connectors";
 import Link from "next/link";
@@ -81,8 +82,13 @@ export default function SlackPage() {
             Channels
           </h3>
           {messagesQuery.isLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <div className="space-y-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+                  <Skeleton className="size-3.5 shrink-0 rounded" />
+                  <Skeleton className="h-4 flex-1" />
+                </div>
+              ))}
             </div>
           ) : (
             channels.map((ch) => (

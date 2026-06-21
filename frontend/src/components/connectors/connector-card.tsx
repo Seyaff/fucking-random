@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Mail, Hash, Link2, Link2Off, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface ConnectorCardProps {
   provider: "gmail" | "slack";
@@ -16,13 +17,13 @@ interface ConnectorCardProps {
 const providerConfig = {
   gmail: {
     name: "Gmail",
-    icon: Mail,
+    icon: "./gmail.svg",
     color: "bg-red-50 text-red-600",
     border: "border-red-200",
   },
   slack: {
     name: "Slack",
-    icon: Hash,
+    icon: "./slack.svg",
     color: "bg-purple-50 text-purple-600",
     border: "border-purple-200",
   },
@@ -50,10 +51,11 @@ export function ConnectorCard({
           <div
             className={cn(
               "size-10 rounded-lg flex items-center justify-center",
-              config.color
+              
             )}
           >
-            <config.icon className="size-5" />
+            
+            <Image width={60} height={60} className="size-4" src={config.icon} alt="slack" />
           </div>
           <div>
             <h3 className="font-semibold">{config.name}</h3>

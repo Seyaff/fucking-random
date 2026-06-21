@@ -18,6 +18,8 @@ import {
   Menu,
   X,
   Cable,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const navItems = [
@@ -32,7 +34,7 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-function SidebarContent() {
+function SidebarContent({ collapsed }: { collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -41,15 +43,19 @@ function SidebarContent() {
         <Link
           key={href}
           href={href}
+          title={collapsed ? label : undefined}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200",
+            collapsed
+              ? "justify-center px-0 py-2.5 mx-auto size-10"
+              : "px-3 py-2",
             pathname.startsWith(href)
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
           )}
         >
           <Icon className="size-4 shrink-0" />
-          {label}
+          {!collapsed && label}
         </Link>
       ))}
     </nav>
@@ -58,18 +64,36 @@ function SidebarContent() {
 
 export function Sidebar() {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <>
-      <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:bg-sidebar md:p-4">
-        <Link href="/inbox" className="flex items-center gap-2 mb-8 px-2">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
+      <aside
+        className={cn(
+          "hidden md:flex md:flex-col md:border-r md:bg-sidebar md:p-3 transition-all duration-300 ease-in-out",
+          collapsed ? "md:w-16" : "md:w-64"
+        )}
+      >
+        <div className={cn("flex items-center mb-6", collapsed ? "justify-center" : "gap-2 px-2")}>
+          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold shrink-0">
             R
           </div>
-          <span className="font-semibold text-lg">Relay</span>
-        </Link>
+          {!collapsed && <span className="font-semibold text-lg">Relay</span>}
+        </div>
 
-        <SidebarContent />
+        <div className="flex-1">
+          <SidebarContent collapsed={collapsed} />
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="mt-2 size-8 self-center text-muted-foreground hover:text-foreground"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+        </Button>
       </aside>
 
       <Sheet open={open} onOpenChange={setOpen}>

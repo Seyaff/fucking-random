@@ -288,17 +288,14 @@ export class ConnectorService {
     async fetchSlackMessages(userId: string, limit = 10) {
         const accessToken = await this.getValidAccessToken("slack", userId);
 
-        const channelsRes = await axios.post(
-            "https://slack.com/api/conversations.list",
-            {},
-            {
-                headers: { Authorization: `Bearer ${accessToken}` },
-                params: { types: "public_channel", exclude_archived: true, limit: 20 },
-            }
-        );
+        const channelsRes = await axios.get("https://slack.com/api/conversations.list", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            params: { types: "public_channel", exclude_archived: true, limit: 20 },
+        });
 
         if (!channelsRes.data.ok) {
-            throw new BadRequestError(channelsRes.data.error || "Failed to list Slack channels");
+            console.error("[slack] conversations.list error:", channelsRes.data.error);
+            return [];
         }
 
         const channels = channelsRes.data.channels || [];
@@ -308,16 +305,15 @@ export class ConnectorService {
 
         for (const channel of channels.slice(0, 5)) {
             try {
-                const histRes = await axios.post(
-                    "https://slack.com/api/conversations.history",
-                    {},
-                    {
-                        headers: { Authorization: `Bearer ${accessToken}` },
-                        params: { channel: channel.id, limit: Math.ceil(limit / 5) },
-                    }
-                );
+                const histRes = await axios.get("https://slack.com/api/conversations.history", {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    params: { channel: channel.id, limit: Math.ceil(limit / 5) },
+                });
 
-                if (!histRes.data.ok) continue;
+                if (!histRes.data.ok) {
+                    console.error(`[slack] conversations.history for #${channel.name}:`, histRes.data.error);
+                    continue;
+                }
 
                 const messages = histRes.data.messages || [];
                 for (const msg of messages.slice(0, 3)) {

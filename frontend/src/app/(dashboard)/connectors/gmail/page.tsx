@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Mail, Loader2, AlertCircle, Inbox, ArrowLeft, ExternalLink } from "lucide-react";
+import { Mail, Loader2, AlertCircle, Inbox, ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { connectorService } from "@/services/connector.service";
 import { useConnectorStatuses } from "@/hooks/use-connectors";
 import Link from "next/link";
@@ -89,9 +90,17 @@ function EmailListView({
 }) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading emails...</span>
+      <div className="rounded-xl border bg-card divide-y">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        ))}
       </div>
     );
   }
