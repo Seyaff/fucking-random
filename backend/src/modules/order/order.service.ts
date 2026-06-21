@@ -1,8 +1,10 @@
 import { Types } from "mongoose";
 import OrderModel from "./order.model";
 import ProductModel from "../product/product.model";
+import UserModel from "../user/user.model";
 import { BadRequestError, NotFoundError } from "../../utils/appError";
 import { eventService } from "../../lib/event-service";
+import { emailService } from "../../lib/email.service";
 
 function generateOrderId(): string {
     const ts = Date.now().toString(36).toUpperCase();
@@ -65,6 +67,23 @@ export class OrderService {
                 totalAmount: total,
                 customerName: data.customerName,
             },
+        });
+
+        UserModel.findById(userId).then((user) => {
+            if (user?.email) {
+                emailService.sendOrderConfirmationEmail(user.email, {
+                    customerName: data.customerName,
+                    orderId: order.orderId,
+                    items: order.items.map((i) => ({
+                        name: i.productName,
+                        quantity: i.quantity,
+                        total: i.total,
+                    })),
+                    total: order.totalAmount,
+                }).catch((err) => {
+                    console.error("[order] Order email failed:", err.message);
+                });
+            }
         });
 
         return order;

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { z } from "zod";
 import {
     getProductInfoSchema,
@@ -10,6 +11,8 @@ import ProductModel from "../../product/product.model";
 import { OrderService } from "../../order/order.service";
 
 const orderService = new OrderService();
+
+const FILLER_WORDS = new Set(["what", "is", "are", "the", "a", "an", "in", "of", "for", "do", "you", "have", "got", "any", "some", "can", "i", "we", "they", "he", "she", "it", "this", "that", "these", "those", "how", "much", "many", "about", "tell", "show", "list", "find", "me", "need", "want", "buy", "get", "like", "all", "your", "our", "with", "and", "or", "not", "no", "yes", "please", "just"]);
 
 export interface Tool {
     name: string;
@@ -37,36 +40,70 @@ function buildOpenaiParams(name: string, desc: string, properties: Record<string
     };
 }
 
+function extractSearchWords(query: string): string[] {
+    return query
+        .replace(/[?.!,:;"]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !FILLER_WORDS.has(w.toLowerCase()));
+}
+
 export const tools: Tool[] = [
     {
         name: "get_product_info",
-        description: "Search for products by name. Returns product details including price and stock. If no exact match, return all products to let the customer choose.",
+        description: "Search for products by name, category, or SKU. Use this when a customer asks about products, availability, pricing, or what's in stock. If the query is generic (e.g. 'what products', 'catalog', 'inventory'), pass an empty string to list everything.",
         parameters: getProductInfoSchema,
-        openai: buildOpenaiParams("get_product_info", "Search for products by name. Returns product details including price and stock.", {
-            query: { type: "string", description: "Product name or search query" },
+        openai: buildOpenaiParams("get_product_info", "Search products by name, category, or SKU. Returns details including price, stock, and unit.", {
+            query: { type: "string", description: "Product name or search query. Pass empty string to list all products." },
         }, ["query"]),
         handler: async (args: any, userId) => {
             const { query } = getProductInfoSchema.parse(args);
             if (!userId) return JSON.stringify({ found: false, message: "User not identified" });
 
-            const q = query.trim();
-            const words = q.split(/\s+/).filter(Boolean);
+            const words = extractSearchWords(query);
 
-            const conditions = words.map((word) => ({
+            const allProducts = await ProductModel.find({
+                userId: new Types.ObjectId(userId),
+                isActive: true,
+            })
+                .limit(20)
+                .lean()
+                .catch(() => []);
+
+            if (allProducts.length === 0) {
+                return JSON.stringify({ found: false, message: "Your catalog is empty. Import some products first." });
+            }
+
+            if (words.length === 0) {
+                return JSON.stringify({
+                    found: true,
+                    query: query || "(all products)",
+                    products: allProducts.map((p) => ({
+                        id: p._id.toString(),
+                        name: p.name,
+                        price: p.price,
+                        unit: p.unit,
+                        stock: p.stock,
+                        category: p.category,
+                    })),
+                });
+            }
+
+            const conditions = words.map((w) => ({
                 $or: [
-                    { name: { $regex: word, $options: "i" } },
-                    { sku: { $regex: word, $options: "i" } },
-                    { category: { $regex: word, $options: "i" } },
+                    { name: { $regex: w, $options: "i" } },
+                    { sku: { $regex: w, $options: "i" } },
+                    { category: { $regex: w, $options: "i" } },
                 ],
             }));
 
             const products = await ProductModel.find({
-                userId,
+                userId: new Types.ObjectId(userId),
                 isActive: true,
-                ...(conditions.length > 0 ? { $and: conditions } : {}),
+                $or: conditions,
             })
                 .limit(10)
-                .lean();
+                .lean()
+                .catch(() => []);
 
             if (products.length === 0) {
                 return JSON.stringify({ found: false, message: `No products found matching "${query}"` });
@@ -74,6 +111,7 @@ export const tools: Tool[] = [
 
             return JSON.stringify({
                 found: true,
+                query,
                 products: products.map((p) => ({
                     id: p._id.toString(),
                     name: p.name,

@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
 import { authService } from "@/services/auth.service";
 import { Sidebar } from "@/components/dashboard/sidebar";
@@ -53,6 +54,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <Toaster richColors closeButton position="top-right" />
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar user={user} />

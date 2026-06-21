@@ -1,286 +1,123 @@
-import { Types } from "mongoose";
 import OpenAI from "openai";
 import { Env } from "../../config/app.config";
-import { classifyIntent, type Intent } from "../../lib/intent-classifier";
-import { conversationStore, type ConversationState } from "../../lib/conversation-store";
-import ProductModel from "../product/product.model";
-import { OrderService } from "../order/order.service";
+import { tools } from "./tools";
 
 const openai = new OpenAI({
     apiKey: Env.GROQ_API_KEY,
     baseURL: "https://api.groq.com/openai/v1",
 });
 
-const orderService = new OrderService();
+const SYSTEM_PROMPT = `You are Relay, a helpful AI customer support agent for a business. You have access to tools that let you search products, check prices, place orders, and check order status.
 
-const CHITCHAT_SYSTEM = `You are Relay, a friendly AI customer support agent. Keep responses VERY short — 1-2 sentences. Be warm and natural.`;
+When a customer messages you:
+- If they ask what's available or what you sell → use get_product_info
+- If they want to buy something → find the product first, then place the order after confirming details
+- If they ask about price → use get_product_info and share the price
+- If they ask about an existing order → use get_order_status
+- If they need a human → use escalate_to_human
+- For casual conversation or greetings → just respond naturally
+
+Rules:
+- Keep responses VERY short — 1-2 sentences. Be warm and natural.
+- Never make up product names, prices, or order details — always use the tools.
+- If a tool returns an error or no results, tell the customer honestly and ask how else you can help.`;
+
+const QUICK_GREETING = /^(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|yo|bye|goodbye|thanks?|thank\s*you)[\s!.?]*$/i;
+const QUICK_ESCALATE = /\b(human|agent|talk\s*to\s*(a\s*)?(human|person)|real\s*person|speak\s*to\s*(manager|human))\b/i;
 
 export class AgentService {
     async processMessage(
         message: string,
         userId?: string,
-        conversationHistory: { role: "user" | "assistant"; content: string }[] = []
+        context?: {
+            conversationHistory?: { role: "user" | "assistant"; content: string }[];
+            templateContext?: string;
+        }
     ): Promise<string> {
         const text = message.trim();
         if (!text) return "Please say something!";
+        if (!userId) return "Please log in first.";
 
-        const stateKey = userId || "anonymous";
-        const state = conversationStore.get(stateKey);
-        const intent = await classifyIntent(text);
-
-        state.lastIntent = intent;
-        conversationStore.set(stateKey, state);
-
-        // --- GREETING ---
-        if (intent === "greeting") {
-            const name = conversationHistory.length > 0
-                ? ""
-                : "! How can I help you today?";
-            return `Hello${name}`;
-        }
-
-        // --- CANCEL ---
-        if (intent === "cancel") {
-            conversationStore.reset(stateKey);
-            return "No problem! Let me know if you need anything else.";
-        }
-
-        // --- ESCALATE ---
-        if (intent === "escalate") {
-            conversationStore.reset(stateKey);
+        if (QUICK_ESCALATE.test(text)) {
             return "I'm transferring you to a human agent. Someone will be with you shortly.";
         }
 
-        // --- PRODUCT SEARCH ---
-        if (intent === "product_search") {
-            return await this.handleProductSearch(text, userId);
+        if (QUICK_GREETING.test(text)) {
+            return "Hello! How can I help you today?";
         }
 
-        // --- PRICE CHECK ---
-        if (intent === "price_check") {
-            return await this.handlePriceCheck(text, userId);
-        }
-
-        // --- ORDER STATUS ---
-        if (intent === "order_status") {
-            return await this.handleOrderStatus(text, userId);
-        }
-
-        // --- PLACE ORDER / CONFIRM ---
-        if (intent === "place_order") {
-            return await this.handlePlaceOrder(text, userId, state, stateKey);
-        }
-
-        // --- CHITCHAT (use LLM) ---
-        return await this.handleChitchat(text, conversationHistory);
-    }
-
-    private async handleProductSearch(text: string, userId?: string): Promise<string> {
-        if (!userId) return "Please log in first.";
-
-        const allProducts = await ProductModel.find({ userId: new Types.ObjectId(userId), isActive: true })
-            .limit(20)
-            .lean();
-
-        if (allProducts.length === 0) {
-            return "Your catalog is empty. Import some products in Settings to get started.";
-        }
-
-        const words = text.split(/\s+/)
-            .map((w) => w.replace(/[?.!,]/g, ""))
-            .filter((w) => w.length > 2);
-
-        const conditions = words.map((w) => ({
-            $or: [
-                { name: { $regex: w, $options: "i" } },
-                { sku: { $regex: w, $options: "i" } },
-                { category: { $regex: w, $options: "i" } },
-            ],
-        }));
-
-        const products = conditions.length > 0
-            ? await ProductModel.find({
-                userId: new Types.ObjectId(userId),
-                isActive: true,
-                $or: conditions,
-            })
-                .limit(10)
-                .lean()
-            : allProducts;
-
-        const list = products
-            .map((p) => `${p.name} — $${p.price}/${p.unit} (${p.stock} in stock)`)
-            .join("\n");
-
-        return products.length > 0
-            ? `Here's what I found:\n${list}`
-            : `I couldn't find anything matching "${text}". Try a different search term?`;
-    }
-
-    private async handlePriceCheck(text: string, userId?: string): Promise<string> {
-        if (!userId) return "Please log in first.";
-
-        const words = text.split(/\s+/)
-            .map((w) => w.replace(/[?.!,]/g, ""))
-            .filter((w) => w.length > 2 && !/^(price|cost|how|much|rate|what|the|of|for|is|are)$/i.test(w));
-
-        if (words.length === 0) {
-            return "Which product's price would you like to know?";
-        }
-
-        const conditions = words.map((w) => ({
-            name: { $regex: w, $options: "i" },
-        }));
-
-        const products = await ProductModel.find({
-            userId: new Types.ObjectId(userId),
-            isActive: true,
-            $or: conditions,
-        })
-            .limit(5)
-            .lean();
-
-        if (products.length === 0) {
-            return `I couldn't find pricing for "${words.join(" ")}". Try searching with a different name?`;
-        }
-
-        return products
-            .map((p) => `${p.name}: $${p.price}/${p.unit}`)
-            .join("\n");
-    }
-
-    private async handleOrderStatus(text: string, userId?: string): Promise<string> {
-        if (!userId) return "Please log in first.";
-
-        const match = text.match(/ORD-[A-Z0-9]+/i);
-        const orderId = match ? match[0].toUpperCase() : null;
-
-        if (!orderId) {
-            return "Please provide an order ID (e.g., ORD-ABC123) to check the status.";
-        }
-
-        try {
-            const order = await orderService.getOrderByOrderId(userId, orderId);
-            const item = order.items[0]!;
-            return `Order ${order.orderId}: ${item.productName} x${item.quantity} — Status: ${order.status}. Total: $${order.totalAmount.toFixed(2)}.`;
-        } catch {
-            return `Order ${orderId} not found. Please check the ID and try again.`;
-        }
-    }
-
-    private async handlePlaceOrder(
-        text: string,
-        userId: string | undefined,
-        state: ConversationState,
-        stateKey: string
-    ): Promise<string> {
-        if (!userId) return "Please log in first.";
-
-        // Extract potential product name and quantity from the message
-        const qtyMatch = text.match(/(\d+)\s*(kg|piece|pieces|pcs|unit|units|pack|box)/i);
-        const quantity = qtyMatch ? parseInt(qtyMatch[1]!) : undefined;
-        const unit = qtyMatch ? qtyMatch[2]!.toLowerCase() : undefined;
-
-        const productName = text
-            .replace(/(\d+\s*(kg|piece|pieces|pcs|unit|units|pack|box)|yes|sure|please|i\s*want|i\s*need|order|buy|place)/gi, "")
-            .replace(/[?.!]/g, "")
-            .trim();
-
-        // If we already have a pending order and user confirms
-        if (state.pendingOrder && /yes|sure|go ahead|okay|ok|do it|please|yeah/i.test(text)) {
-            if (!state.pendingOrder.productId) {
-                return "Sorry, I don't have the product details. Could you tell me what you'd like to order?";
-            }
-
-            try {
-                const order = await orderService.createOrder(userId, {
-                    customerName: state.pendingOrder.customerName || "Customer",
-                    customerPhone: state.pendingOrder.phone || "0000000000",
-                    productId: state.pendingOrder.productId,
-                    quantity: state.pendingOrder.quantity || 1,
-                });
-
-                conversationStore.reset(stateKey);
-                return `Order placed! ${order.orderId} — ${order.items[0]!.productName} x${order.items[0]!.quantity}. Total: $${order.totalAmount.toFixed(2)}.`;
-            } catch (err: any) {
-                return `Sorry, I couldn't place the order: ${err.message}`;
-            }
-        }
-
-        // Try to find the product
-        const searchWords = productName.split(/\s+/).filter(Boolean);
-        if (searchWords.length === 0) {
-            conversationStore.set(stateKey, {
-                ...state,
-                awaitingDetails: "product",
-                pendingOrder: null,
-            });
-            return "Sure! Which product would you like to order?";
-        }
-
-        const conditions = searchWords.map((w) => ({
-            $or: [
-                { name: { $regex: w, $options: "i" } },
-                { category: { $regex: w, $options: "i" } },
-            ],
-        }));
-
-        const products = await ProductModel.find({
-            userId: new Types.ObjectId(userId),
-            isActive: true,
-            $and: conditions,
-        })
-            .limit(5)
-            .lean();
-
-        if (products.length === 0) {
-            return `I couldn't find "${productName}" in your catalog. Try a different product name?`;
-        }
-
-        const product = products[0]!;
-        const qty = quantity || 1;
-        const total = product.price * qty;
-
-        // Save pending order
-        conversationStore.set(stateKey, {
-            lastIntent: "place_order",
-            pendingOrder: {
-                productId: product._id.toString(),
-                productName: product.name,
-                unitPrice: product.price,
-                quantity: qty,
-            },
-            awaitingDetails: "nothing",
-        });
-
-        const unitStr = unit || product.unit;
-        return `${product.name}: $${product.price}/${product.unit}. ${qty} ${unitStr} = $${total.toFixed(2)}. Shall I place the order?`;
-    }
-
-    private async handleChitchat(
-        text: string,
-        conversationHistory: { role: "user" | "assistant"; content: string }[]
-    ): Promise<string> {
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-            { role: "system", content: CHITCHAT_SYSTEM },
-            ...conversationHistory.slice(-6).map((m) => ({
+            {
+                role: "system",
+                content: context?.templateContext
+                    ? `${SYSTEM_PROMPT}\n\nThe customer is replying to this message you sent just now:\n${context.templateContext}`
+                    : SYSTEM_PROMPT,
+            },
+            ...(context?.conversationHistory ?? []).slice(-6).map((m) => ({
                 role: m.role as "user" | "assistant",
                 content: m.content,
             })),
             { role: "user", content: text },
         ];
 
+        const toolDefinitions = tools.map((t) => t.openai);
+
         const response = await openai.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages,
-            temperature: 0.7,
-            max_tokens: 150,
-        }).catch(() => null);
+            tools: toolDefinitions,
+            tool_choice: "auto",
+            temperature: 0.3,
+            max_tokens: 400,
+        });
 
-        if (!response) {
-            return "I'm sorry, I'm having trouble connecting. Please try again.";
+        const choice = response.choices[0]?.message;
+        if (!choice) return "I'm not sure how to respond to that.";
+
+        if (choice.tool_calls && choice.tool_calls.length > 0) {
+            messages.push(choice);
+
+            for (const call of choice.tool_calls) {
+                if (call.type !== "function") continue;
+                const fn = call.function as { name: string; arguments: string };
+                const tool = tools.find((t) => t.name === fn.name);
+                if (!tool) {
+                    messages.push({
+                        role: "tool",
+                        tool_call_id: call.id,
+                        content: JSON.stringify({ error: `Unknown tool: ${fn.name}` }),
+                    });
+                    continue;
+                }
+
+                try {
+                    const args = JSON.parse(fn.arguments);
+                    const validated = tool.parameters.parse(args);
+                    const result = await tool.handler(validated, userId);
+                    messages.push({
+                        role: "tool",
+                        tool_call_id: call.id,
+                        content: result,
+                    });
+                } catch (err: any) {
+                    messages.push({
+                        role: "tool",
+                        tool_call_id: call.id,
+                        content: JSON.stringify({ error: err.message ?? "Invalid arguments" }),
+                    });
+                }
+            }
+
+            const finalResponse = await openai.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages,
+                temperature: 0.5,
+                max_tokens: 200,
+            });
+
+            return finalResponse.choices[0]?.message?.content || "Let me check on that for you.";
         }
 
-        return response.choices[0]?.message?.content || "I'm not sure how to respond to that.";
+        return choice.content || "I'm not sure how to respond to that.";
     }
 }

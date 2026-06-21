@@ -90,6 +90,7 @@ export class WhatsAppController {
                     data: {
                         conversationId: msg.conversationId.toString(),
                         customerPhone: message.sender,
+                        preview: message.text.slice(0, 100),
                     },
                 });
 

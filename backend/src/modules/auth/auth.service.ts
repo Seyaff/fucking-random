@@ -4,6 +4,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../uti
 import { UnauthorizedError } from "../../utils/appError";
 import { RequestMeta } from "../../utils/request";
 import { Env } from "../../config/app.config";
+import { emailService } from "../../lib/email.service";
 import UserModel, { IUser } from "../user/user.model";
 import AccountModel from "./account.model";
 import RefreshTokenModel from "./refreshToken.model";
@@ -29,6 +30,7 @@ export class AuthService {
             return user;
         }
 
+        let isNewUser = false;
         let user = await UserModel.findOne({ email: data.email });
 
         if (!user) {
@@ -36,6 +38,13 @@ export class AuthService {
                 name: data.name,
                 email: data.email,
                 ...(data.avatarUrl ? { avatarUrl: data.avatarUrl } : {}),
+            });
+            isNewUser = true;
+        }
+
+        if (isNewUser) {
+            emailService.sendWelcomeEmail(user.email, user.name).catch((err) => {
+                console.error("[auth] Welcome email failed:", err.message);
             });
         }
 

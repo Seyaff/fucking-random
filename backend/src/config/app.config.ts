@@ -26,6 +26,9 @@ const appConfig = () => ({
 
   GROQ_API_KEY: getEnv("GROQ_API_KEY"),
 
+  RESEND_API_KEY: getEnv("RESEND_API_KEY", ""),
+  RESEND_FROM_EMAIL: getEnv("RESEND_FROM_EMAIL", "Relay <onboarding@resend.dev>"),
+
 });
 
 
