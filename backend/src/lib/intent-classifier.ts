@@ -10,7 +10,7 @@ export type Intent =
     | "chitchat";
 
 const GREETING = /\b(hi|hello|hey|good\s*(morning|afternoon|evening)|howdy|sup|yo)\b/i;
-const PRODUCT_SEARCH = /\b(what\s*(product|item|you\s*have)|show|list|available|catalog|do\s*you\s*(have|sell)|got\s*any)\b/i;
+const PRODUCT_SEARCH = /\b(what\s*(product|item|you\s*have)|show|list|available|catalog|do\s*you\s*(have|sell)|got\s*any)\b|^products?$/i;
 const PRICE_CHECK = /\b(price|cost|how\s*much|rate|what.*price)\b/i;
 const PLACE_ORDER = /\b(i\s*want|i\s*need|i.*(like|would).*order|place.*order|buy|purchase|order|send\s*me)\b/i;
 const ORDER_STATUS = /\b(order.*status|where.*order|track|delivery|shipped)\b/i;

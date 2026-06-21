@@ -78,12 +78,54 @@ export class AgentService {
     private async handleProductSearch(text: string, userId?: string): Promise<string> {
         if (!userId) return "Please log in first.";
 
+        const genericPattern = /^(what\s*(product|item|you\s*have|do\s*you\s*(have|sell|got))|show\s*(me\s*)?(product|catalog)|list\s*(product|catalog|everything)|catalog|products?$|inventory)/i;
+        const isGeneric = genericPattern.test(text.trim());
+
+        if (isGeneric) {
+            const products = await ProductModel.find({
+                userId: new Types.ObjectId(userId),
+                isActive: true,
+            })
+                .limit(20)
+                .lean();
+
+            if (products.length === 0) {
+                return "Your catalog is empty. Import some products in Settings to get started.";
+            }
+
+            const list = products
+                .map((p) => `${p.name} — $${p.price}/${p.unit} (${p.stock} in stock)`)
+                .join("\n");
+
+            return `Here's what's in your catalog:\n${list}`;
+        }
+
+        const stopWords = /\b(what|is|are|the|a|an|in|of|for|show|me|tell|about|do|you|have|got|any|some|can|i|need|want|find|looking|price|cost|rate)\b/gi;
         const query = text
-            .replace(/what\s*(product|item|you\s*have|do\s*you\s*have|do\s*you\s*sell|got|show|list|available|catalog)/i, "")
-            .replace(/[?]/g, "")
+            .replace(stopWords, "")
+            .replace(/[?.!,]/g, "")
             .trim();
 
         const words = query.split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+            const allProducts = await ProductModel.find({
+                userId: new Types.ObjectId(userId),
+                isActive: true,
+            })
+                .limit(20)
+                .lean();
+
+            if (allProducts.length === 0) {
+                return "Your catalog is empty. Import some products in Settings to get started.";
+            }
+
+            const list = allProducts
+                .map((p) => `${p.name} — $${p.price}/${p.unit} (${p.stock} in stock)`)
+                .join("\n");
+
+            return `Here's what's in your catalog:\n${list}`;
+        }
+
         const conditions = words.map((word) => ({
             $or: [
                 { name: { $regex: word, $options: "i" } },
@@ -95,15 +137,13 @@ export class AgentService {
         const products = await ProductModel.find({
             userId: new Types.ObjectId(userId),
             isActive: true,
-            ...(conditions.length > 0 ? { $and: conditions } : {}),
+            $and: conditions,
         })
             .limit(10)
             .lean();
 
         if (products.length === 0) {
-            return query
-                ? `I couldn't find anything matching "${query}". Try searching with a different word?`
-                : "Your catalog is empty. Import some products in Settings to get started.";
+            return `I couldn't find anything matching "${query}". Try a different search term?`;
         }
 
         const list = products
