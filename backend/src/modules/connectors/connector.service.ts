@@ -7,7 +7,7 @@ import { Env } from "../../config/app.config";
 const oauthStateMap = new Map<string, { userId: string; provider: string }>();
 
 const GMAIL_SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
-const SLACK_SCOPES = "channels:history,channels:read,users:read";
+const SLACK_SCOPES = "channels:history,channels:read,chat:write,users:read";
 
 export class ConnectorService {
     generateState(userId: string, provider: string): string {
@@ -43,7 +43,7 @@ export class ConnectorService {
             client_id: Env.SLACK_CLIENT_ID,
             redirect_uri: Env.SLACK_REDIRECT_URI,
             scope: SLACK_SCOPES,
-            user_scope: "channels:history,channels:read",
+            user_scope: "channels:history,channels:read,chat:write",
             state,
         });
         return `https://slack.com/oauth/v2/authorize?${params}`;

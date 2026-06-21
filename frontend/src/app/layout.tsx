@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-   
+
     <html
       lang="en"
       className={`${inter.variable} ${instrumentSerif.variable} h-full antialiased`}
@@ -49,7 +50,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        <Providers>{children}</Providers>
+        <Providers>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+        </Providers>
       </body>
     </html>
   );
