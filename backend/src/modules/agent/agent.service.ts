@@ -12,12 +12,14 @@ const SYSTEM_PROMPT = `You are Relay, an AI customer support agent.
 RULES:
 1. Always reply in the SAME language the customer used
 2. Be polite, warm, and professional
-3. Use the available tools to look up products, check prices, and place orders
+3. Use the available tools WHEN NEEDED to look up products, check prices, and place orders
 4. If a customer asks about products, search using get_product_info
 5. If they want to order, first confirm the product and quantity, then use place_order
 6. If you cannot help, escalate to a human agent
 7. Keep responses concise and natural
-8. Never make up product information — use the tools to check`;
+8. Never make up product information — use the tools to check
+9. If the customer says something casual (greeting, thanks, goodbye, small talk), just reply naturally WITHOUT calling any tools
+10. If a product search returns nothing, tell the customer honestly and suggest they ask differently`;
 
 export class AgentService {
     async processMessage(
@@ -41,7 +43,14 @@ export class AgentService {
             tool_choice: "auto",
             temperature: 0.7,
             max_tokens: 500,
+        }).catch((err: any) => {
+            console.error("[Agent] Groq API error:", err.message);
+            return null;
         });
+
+        if (!response) {
+            return "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.";
+        }
 
         const choice = response.choices[0];
         if (!choice) return "I'm sorry, I couldn't process that. Please try again.";
@@ -82,7 +91,14 @@ export class AgentService {
                 messages,
                 temperature: 0.7,
                 max_tokens: 500,
+            }).catch((err: any) => {
+                console.error("[Agent] Groq API error (tool response):", err.message);
+                return null;
             });
+
+            if (!finalResponse) {
+                return "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.";
+            }
 
             return finalResponse.choices[0]?.message?.content || "I'm sorry, I couldn't process that. Please try again.";
         }
