@@ -1,53 +1,35 @@
 import { createWorker, messageQueue } from "./queue";
-import { WhatsAppService } from "../modules/whatsapp/whatsapp.service";
-import { AgentService } from "../modules/agent/agent.service";
 import { ConversationService } from "../modules/conversation/conversation.service";
 import { eventService } from "./event-service";
 
-const whatsappService = new WhatsAppService();
-const agentService = new AgentService();
 const conversationService = new ConversationService();
 
 export function startWorker() {
     createWorker(async (job) => {
-        const { sender, text, userId } = job.data;
+        const { sender, userId } = job.data;
 
-        console.log(`[${job.id}] Processing from ${sender}: "${text.slice(0, 60)}"`);
+        console.log(`[${job.id}] Processing from ${sender}`);
 
-        const isFirstMessage = !(await conversationService.getConversationHistory(userId, sender)).some(
-            (m) => m.role === "assistant"
-        );
-
-        let reply;
-        if (isFirstMessage) {
-            reply = await agentService.processMessage("__GREETING__", userId);
-        } else {
-            const history = await conversationService.getConversationHistory(userId, sender);
-            reply = await agentService.processMessage(text, userId, { conversationHistory: history });
-        }
-
-        if (reply.interactive && reply.interactive.buttons.length > 0) {
-            await whatsappService.sendInteractiveButtons(
+        try {
+            const msg = await conversationService.addMessage(
+                userId,
                 sender,
-                reply.interactive.body,
-                reply.interactive.buttons,
-                userId
+                "assistant",
+                "Thanks for your message! A team member will respond shortly."
             );
-        } else {
-            await whatsappService.sendMessage(sender, reply.text, userId);
+
+            eventService.emit(userId, {
+                type: "new_message",
+                data: {
+                    conversationId: msg.conversationId.toString(),
+                    customerPhone: sender,
+                },
+            });
+
+            console.log(`[${job.id}] Acknowledged`);
+        } catch (err: any) {
+            console.error(`[${job.id}] Failed to process message:`, err.message);
         }
-
-        const msg = await conversationService.addMessage(userId, sender, "assistant", reply.text);
-
-        eventService.emit(userId, {
-            type: "new_message",
-            data: {
-                conversationId: msg.conversationId.toString(),
-                customerPhone: sender,
-            },
-        });
-
-        console.log(`[${job.id}] Replied: "${reply.text.slice(0, 60)}..."`);
     });
 }
 
@@ -59,7 +41,11 @@ export async function enqueueMessage(data: {
     timestamp: string;
     userId: string;
 }) {
-    await messageQueue.add("process-message", data, {
-        jobId: `msg-${data.messageId}`,
-    });
+    try {
+        await messageQueue.add("process-message", data, {
+            jobId: `msg-${data.messageId}`,
+        });
+    } catch (err: any) {
+        console.error(`[queue] Failed to enqueue message ${data.messageId}:`, err.message);
+    }
 }

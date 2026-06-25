@@ -8,7 +8,7 @@ const HOME_PATH = "/analytics";
 const publicPaths = [LOGIN_PATH, "/signup", "/auth/callback"];
 const protectedPrefixes = [
   "/analytics", "/inbox", "/orders", "/products",
-  "/customers", "/connectors", "/settings", "/templates", "/agent-test",
+  "/customers", "/connectors", "/settings", "/templates",
 ];
 
 export default function proxy(req: NextRequest) {

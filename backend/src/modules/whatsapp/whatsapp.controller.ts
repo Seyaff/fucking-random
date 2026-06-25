@@ -17,45 +17,73 @@ export class WhatsAppController {
         const userId = req.user!._id.toString();
         const { businessAccountId, phoneNumberId, phoneNumber, accessToken, verifyToken } = req.body;
 
-        const account = await whatsappService.connectAccount(userId, {
-            businessAccountId,
-            phoneNumberId,
-            phoneNumber,
-            accessToken,
-            verifyToken,
-        });
+        if (!businessAccountId || !phoneNumberId || !accessToken) {
+            return res.status(HTTPSTATUS.BAD_REQUEST).json({
+                success: false,
+                message: "Missing required fields: businessAccountId, phoneNumberId, accessToken",
+            });
+        }
 
-        return res.status(HTTPSTATUS.OK).json({
-            success: true,
-            message: "WhatsApp connected successfully",
-            account: {
-                id: account._id,
-                businessAccountId: account.businessAccountId,
-                phoneNumberId: account.phoneNumberId,
-                phoneNumber: account.phoneNumber,
-                isConnected: account.isConnected,
-            },
-        });
+        try {
+            const account = await whatsappService.connectAccount(userId, {
+                businessAccountId,
+                phoneNumberId,
+                phoneNumber,
+                accessToken,
+                verifyToken,
+            });
+
+            return res.status(HTTPSTATUS.OK).json({
+                success: true,
+                message: "WhatsApp connected successfully",
+                account: {
+                    id: account._id,
+                    businessAccountId: account.businessAccountId,
+                    phoneNumberId: account.phoneNumberId,
+                    phoneNumber: account.phoneNumber,
+                    isConnected: account.isConnected,
+                },
+            });
+        } catch (err: any) {
+            return res.status(HTTPSTATUS.BAD_REQUEST).json({
+                success: false,
+                message: err.message || "Failed to connect WhatsApp",
+            });
+        }
     });
 
     disconnect = asyncHandler(async (req: Request, res: Response) => {
         const userId = req.user!._id.toString();
-        const result = await whatsappService.disconnectAccount(userId);
 
-        return res.status(HTTPSTATUS.OK).json({
-            success: true,
-            ...result,
-        });
+        try {
+            const result = await whatsappService.disconnectAccount(userId);
+            return res.status(HTTPSTATUS.OK).json({
+                success: true,
+                ...result,
+            });
+        } catch (err: any) {
+            return res.status(HTTPSTATUS.NOT_FOUND).json({
+                success: false,
+                message: err.message || "WhatsApp account not found",
+            });
+        }
     });
 
     myConnection = asyncHandler(async (req: Request, res: Response) => {
         const userId = req.user!._id.toString();
-        const connection = await whatsappService.getConnection(userId);
 
-        return res.status(HTTPSTATUS.OK).json({
-            success: true,
-            connection: connection || null,
-        });
+        try {
+            const connection = await whatsappService.getConnection(userId);
+            return res.status(HTTPSTATUS.OK).json({
+                success: true,
+                connection: connection || null,
+            });
+        } catch (err: any) {
+            return res.status(HTTPSTATUS.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: "Failed to fetch connection details",
+            });
+        }
     });
 
     webhookVerify = asyncHandler(async (req: Request, res: Response) => {
@@ -63,9 +91,13 @@ export class WhatsAppController {
         const token = req.query["hub.verify_token"] as string | undefined;
         const challenge = req.query["hub.challenge"] as string | undefined;
 
+        if (!mode || !token || !challenge) {
+            return res.status(HTTPSTATUS.BAD_REQUEST).send("Missing verification parameters");
+        }
+
         const result = await whatsappService.verifyWebhook(mode, token, challenge);
 
-        if (result.verified && challenge) {
+        if (result.verified) {
             return res.status(HTTPSTATUS.OK).send(challenge);
         }
 
@@ -73,39 +105,52 @@ export class WhatsAppController {
     });
 
     webhookReceive = asyncHandler(async (req: Request, res: Response) => {
-        const message = await whatsappService.processIncomingMessage(req.body);
+        let message;
 
-        if (message) {
+        try {
+            message = await whatsappService.processIncomingMessage(req.body);
+        } catch (err: any) {
+            console.error("[webhook] Failed to parse incoming message:", err.message);
+            return res.status(HTTPSTATUS.OK).json({ success: true });
+        }
+
+        if (!message) {
+            return res.status(HTTPSTATUS.OK).json({ success: true });
+        }
+
+        try {
             const account = await WhatsAppAccountModel.findOne({
                 phoneNumberId: message.from,
             });
 
-            if (account) {
-                const userId = account.userId.toString();
-                const text = message.isInteractive && message.buttonId
-                    ? `__BUTTON__:${message.buttonId}`
-                    : message.text;
-
-                const msg = await conversationService.addMessage(userId, message.sender, "user", text);
-
-                eventService.emit(userId, {
-                    type: "new_message",
-                    data: {
-                        conversationId: msg.conversationId.toString(),
-                        customerPhone: message.sender,
-                        preview: text.slice(0, 100),
-                    },
-                });
-
-                await enqueueMessage({
-                    from: message.from,
-                    sender: message.sender,
-                    text,
-                    messageId: message.messageId,
-                    timestamp: message.timestamp,
-                    userId,
-                });
+            if (!account) {
+                console.warn(`[webhook] No account found for phoneNumberId: ${message.from}`);
+                return res.status(HTTPSTATUS.OK).json({ success: true });
             }
+
+            const userId = account.userId.toString();
+
+            const msg = await conversationService.addMessage(userId, message.sender, "user", message.text);
+
+            eventService.emit(userId, {
+                type: "new_message",
+                data: {
+                    conversationId: msg.conversationId.toString(),
+                    customerPhone: message.sender,
+                    preview: message.text.slice(0, 100),
+                },
+            });
+
+            await enqueueMessage({
+                from: message.from,
+                sender: message.sender,
+                text: message.text,
+                messageId: message.messageId,
+                timestamp: message.timestamp,
+                userId,
+            });
+        } catch (err: any) {
+            console.error("[webhook] Error processing message:", err.message);
         }
 
         return res.status(HTTPSTATUS.OK).json({ success: true });
