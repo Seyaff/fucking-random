@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import ConversationModel from "./conversation.model";
+import ConversationModel, { IActiveFlow } from "./conversation.model";
 import MessageModel from "./message.model";
 
 export class ConversationService {
@@ -92,7 +92,52 @@ export class ConversationService {
     async resolveConversation(conversationId: string, userId: string) {
         await ConversationModel.findOneAndUpdate(
             { _id: conversationId, userId: new Types.ObjectId(userId) },
-            { $set: { status: "resolved" } }
+            { $set: { status: "resolved", activeFlow: null } }
+        );
+    }
+
+    async getConversationContext(userId: string, customerPhone: string) {
+        const conversation = await ConversationModel.findOne({
+            userId: new Types.ObjectId(userId),
+            customerPhone,
+        }).lean();
+
+        if (!conversation) {
+            return {
+                status: "active" as const,
+                activeFlow: null,
+            };
+        }
+
+        return {
+            conversationId: conversation._id.toString(),
+            status: conversation.status,
+            activeFlow: (conversation.activeFlow as IActiveFlow | null) ?? null,
+        };
+    }
+
+    async updateFlowState(
+        userId: string,
+        customerPhone: string,
+        activeFlow: IActiveFlow | null
+    ) {
+        await ConversationModel.findOneAndUpdate(
+            { userId: new Types.ObjectId(userId), customerPhone },
+            { $set: { activeFlow } }
+        );
+    }
+
+    async escalateToHuman(userId: string, customerPhone: string) {
+        await ConversationModel.findOneAndUpdate(
+            { userId: new Types.ObjectId(userId), customerPhone },
+            { $set: { status: "human_handling", escalatedAt: new Date(), activeFlow: null } }
+        );
+    }
+
+    async resumeBot(userId: string, customerPhone: string) {
+        await ConversationModel.findOneAndUpdate(
+            { userId: new Types.ObjectId(userId), customerPhone },
+            { $set: { status: "active", activeFlow: null } }
         );
     }
 }

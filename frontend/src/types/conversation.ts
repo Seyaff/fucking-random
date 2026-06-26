@@ -6,9 +6,18 @@ export interface Conversation {
   lastMessage?: string;
   lastMessageAt?: string;
   unreadCount: number;
-  status: "active" | "resolved";
+  status: "active" | "resolved" | "human_handling";
+  escalatedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MessageMetadata {
+  trace?: {
+    intent: string;
+    handler: string;
+    toolsCalled: string[];
+  };
 }
 
 export interface Message {
@@ -16,6 +25,6 @@ export interface Message {
   conversationId: string;
   role: "user" | "assistant" | "agent";
   content: string;
-  metadata?: Record<string, unknown>;
+  metadata?: MessageMetadata;
   createdAt: string;
 }

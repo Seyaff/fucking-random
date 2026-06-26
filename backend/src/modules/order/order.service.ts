@@ -60,6 +60,10 @@ export class OrderService {
             status: "pending",
         });
 
+        await ProductModel.findByIdAndUpdate(product._id, {
+            $inc: { stock: -data.quantity },
+        });
+
         eventService.emit(userId, {
             type: "order_created",
             data: {

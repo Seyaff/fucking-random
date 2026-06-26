@@ -12,5 +12,7 @@ conversationRoutes.get("/:id/messages", controller.getMessages);
 conversationRoutes.post("/:id/messages", controller.sendMessage);
 conversationRoutes.patch("/:id/read", controller.markRead);
 conversationRoutes.patch("/:id/resolve", controller.resolve);
+conversationRoutes.patch("/:id/resume-bot", controller.resumeBot);
+conversationRoutes.get("/:id/traces", controller.getTraces);
 
 export default conversationRoutes;

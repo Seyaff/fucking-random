@@ -1,12 +1,15 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.middleware";
 import { AgentService } from "./agent.service";
+import { buildHarnessContextInputFromConversation } from "./harness/context";
 import { HTTPSTATUS } from "../../config/http.config";
 import { eventService } from "../../lib/event-service";
 import { ConversationService } from "../conversation/conversation.service";
+import { AgentTraceService } from "./agent-trace.service";
 
 const agentService = new AgentService();
 const conversationService = new ConversationService();
+const traceService = new AgentTraceService();
 const TEST_CUSTOMER = "test-agent";
 
 export class AgentController {
@@ -23,10 +26,30 @@ export class AgentController {
 
         await conversationService.addMessage(userId, TEST_CUSTOMER, "user", message);
 
+        const convCtx = await conversationService.getConversationContext(userId, TEST_CUSTOMER);
         const history = await conversationService.getConversationHistory(userId, TEST_CUSTOMER);
-        const reply = await agentService.processMessage(message, userId, { conversationHistory: history });
+        const isFirstMessage = !history.some((m) => m.role === "assistant");
 
-        const agentMsg = await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", reply.text);
+        const harnessContext = buildHarnessContextInputFromConversation({
+            customerPhone: TEST_CUSTOMER,
+            conversationId: convCtx.conversationId,
+            conversationHistory: history,
+            activeFlow: convCtx.activeFlow,
+            conversationStatus: convCtx.status,
+            isFirstMessage,
+        });
+
+        const reply = await agentService.processMessage(message, userId, harnessContext);
+
+        if (reply.escalated) {
+            await conversationService.escalateToHuman(userId, TEST_CUSTOMER);
+        } else if (reply.activeFlow !== undefined) {
+            await conversationService.updateFlowState(userId, TEST_CUSTOMER, reply.activeFlow);
+        }
+
+        const agentMsg = await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", reply.text, {
+            trace: reply.trace,
+        });
 
         eventService.emit(userId, {
             type: "new_message",
@@ -36,6 +59,7 @@ export class AgentController {
         return res.status(HTTPSTATUS.OK).json({
             success: true,
             reply: reply.text,
+            trace: reply.trace,
         });
     });
 
@@ -54,19 +78,54 @@ export class AgentController {
             "X-Accel-Buffering": "no",
         });
 
-        await conversationService.addMessage(userId, "test-agent", "user", message);
-        const history = await conversationService.getConversationHistory(userId, "test-agent");
+        await conversationService.addMessage(userId, TEST_CUSTOMER, "user", message);
+
+        const convCtx = await conversationService.getConversationContext(userId, TEST_CUSTOMER);
+        const history = await conversationService.getConversationHistory(userId, TEST_CUSTOMER);
+        const isFirstMessage = !history.some((m) => m.role === "assistant");
 
         let fullReply = "";
 
-        await agentService.processMessageStream(message, userId, (token) => {
-            fullReply += token;
-            res.write(`data: ${JSON.stringify({ token })}\n\n`);
-        }, { conversationHistory: history });
+        const harnessContext = buildHarnessContextInputFromConversation({
+            customerPhone: TEST_CUSTOMER,
+            conversationId: convCtx.conversationId,
+            conversationHistory: history,
+            activeFlow: convCtx.activeFlow,
+            conversationStatus: convCtx.status,
+            isFirstMessage,
+        });
 
-        await conversationService.addMessage(userId, "test-agent", "assistant", fullReply);
+        const reply = await agentService.processMessageStream(
+            message,
+            userId,
+            (token) => {
+                fullReply += token;
+                res.write(`data: ${JSON.stringify({ token })}\n\n`);
+            },
+            harnessContext
+        );
 
-        res.write(`data: ${JSON.stringify({ done: true, full: fullReply })}\n\n`);
+        if (reply.escalated) {
+            await conversationService.escalateToHuman(userId, TEST_CUSTOMER);
+        } else if (reply.activeFlow !== undefined) {
+            await conversationService.updateFlowState(userId, TEST_CUSTOMER, reply.activeFlow);
+        }
+
+        await conversationService.addMessage(userId, TEST_CUSTOMER, "assistant", fullReply || reply.text, {
+            trace: reply.trace,
+        });
+
+        res.write(`data: ${JSON.stringify({ done: true, full: fullReply || reply.text, trace: reply.trace })}\n\n`);
         res.end();
+    });
+
+    stats = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const days = parseInt(req.query.days as string) || 7;
+        const since = new Date();
+        since.setDate(since.getDate() - days);
+
+        const stats = await traceService.getStats(userId, since);
+        return res.status(HTTPSTATUS.OK).json({ success: true, stats, periodDays: days });
     });
 }

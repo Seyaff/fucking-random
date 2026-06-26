@@ -1,5 +1,9 @@
 import "dotenv/config"
 import dns from "dns"
+import { getEnv } from "./utils/getEnv"
+
+const mav=getEnv("MONGO_URI")
+console.log(mav)
 
 import express, { Request, Response } from "express"
 import cors from "cors"
@@ -16,6 +20,7 @@ import orderRoutes from "./modules/order/order.routes"
 import eventRoutes from "./modules/events/event.routes"
 import whatsappRoutes from "./modules/whatsapp/whatsapp.routes"
 import connectorRoutes from "./modules/connectors/connector.routes"
+import protocolRoutes from "./modules/protocol/protocol.routes"
 
 dns.setServers(["1.1.1.1" , "8.8.8.8"])
 
@@ -40,6 +45,7 @@ app.use(`${Env.BASE_PATH}/orders` , orderRoutes )
 app.use(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
 app.use(`${Env.BASE_PATH}/auth`, authRoutes)
 app.use(`${Env.BASE_PATH}/connectors`, connectorRoutes)
+app.use(`${Env.BASE_PATH}/protocols`, protocolRoutes)
 
 
 app.use(errorHandler)

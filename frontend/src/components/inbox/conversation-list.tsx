@@ -78,11 +78,15 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                 )}
                 <span
                   className={cn(
-                    "text-[10px]",
-                    conv.status === "resolved" ? "text-green-600" : "text-muted-foreground"
+                    "text-[10px] capitalize",
+                    conv.status === "resolved"
+                      ? "text-green-600"
+                      : conv.status === "human_handling"
+                        ? "text-amber-600"
+                        : "text-muted-foreground"
                   )}
                 >
-                  {conv.status}
+                  {conv.status === "human_handling" ? "human" : conv.status}
                 </span>
               </div>
             </div>

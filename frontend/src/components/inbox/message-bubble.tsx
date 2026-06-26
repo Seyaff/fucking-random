@@ -1,5 +1,6 @@
 import type { Message } from "@/types/conversation";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -30,12 +31,25 @@ const roleAlign: Record<string, string> = {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const label = roleLabel[message.role] ?? message.role;
+  const trace = message.metadata?.trace;
 
   return (
     <div className={cn("flex flex-col", roleAlign[message.role])}>
-      <span className="text-xs text-muted-foreground px-1 mb-0.5">
-        {label}
-      </span>
+      <div className="flex items-center gap-2 px-1 mb-0.5">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {trace && message.role === "assistant" && (
+          <div className="flex gap-1">
+            <Badge variant="outline" className="text-[9px] h-4 px-1">
+              {trace.intent}
+            </Badge>
+            {trace.toolsCalled?.map((tool) => (
+              <Badge key={tool} variant="secondary" className="text-[9px] h-4 px-1 font-mono">
+                {tool}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
       <div
         className={cn(
           "rounded-2xl px-4 py-2.5 break-words max-w-[75%]",

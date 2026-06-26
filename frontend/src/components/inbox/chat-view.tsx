@@ -1,16 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import type { Conversation, Message } from "@/types/conversation";
+import type { AgentTrace } from "@/types/agent";
 import { MessageBubble } from "./message-bubble";
+import { AgentTracePanel } from "./agent-trace-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Loader2, Phone, MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Send, Loader2, Phone, Bot, UserRound } from "lucide-react";
 
 interface ChatViewProps {
   conversation: Conversation | null;
   messages: Message[];
+  traces: AgentTrace[];
+  tracesLoading: boolean;
   isLoading: boolean;
   onSend: (content: string) => Promise<void>;
   onResolve: () => void;
+  onResumeBot: () => void;
 }
 
 function formatPhone(phone: string) {
@@ -20,9 +26,25 @@ function formatPhone(phone: string) {
   return phone;
 }
 
-export function ChatView({ conversation, messages, isLoading, onSend, onResolve }: ChatViewProps) {
+const statusBadge: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  resolved: "bg-muted text-muted-foreground",
+  human_handling: "bg-amber-100 text-amber-800",
+};
+
+export function ChatView({
+  conversation,
+  messages,
+  traces,
+  tracesLoading,
+  isLoading,
+  onSend,
+  onResolve,
+  onResumeBot,
+}: ChatViewProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [showTraces, setShowTraces] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,6 +81,8 @@ export function ChatView({ conversation, messages, isLoading, onSend, onResolve 
     }
   };
 
+  const isHuman = conversation.status === "human_handling";
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="p-3 border-b flex items-center justify-between shrink-0">
@@ -70,22 +94,46 @@ export function ChatView({ conversation, messages, isLoading, onSend, onResolve 
             <p className="text-sm font-medium">
               {conversation.customerName || formatPhone(conversation.customerPhone)}
             </p>
-            <p className="text-[10px] text-muted-foreground">
-              {conversation.status}
-            </p>
+            <Badge className={`text-[10px] h-5 ${statusBadge[conversation.status] ?? ""}`}>
+              {isHuman ? "Human handling" : conversation.status}
+            </Badge>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {conversation.status === "active" && (
+          {isHuman ? (
+            <Button variant="outline" size="sm" onClick={onResumeBot} className="text-xs h-8 gap-1">
+              <Bot className="size-3.5" />
+              Resume bot
+            </Button>
+          ) : conversation.status === "active" ? (
             <Button variant="outline" size="sm" onClick={onResolve} className="text-xs h-8">
               Resolve
             </Button>
-          )}
-          <Button variant="ghost" size="icon" className="size-8">
-            <MoreHorizontal className="size-4" />
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowTraces(!showTraces)}
+            className="text-xs h-8"
+          >
+            {showTraces ? "Hide" : "Show"} traces
           </Button>
         </div>
       </div>
+
+      {isHuman && (
+        <div className="px-3 py-2 bg-amber-50 border-b text-xs text-amber-800 flex items-center gap-2">
+          <UserRound className="size-3.5 shrink-0" />
+          Bot is paused. You are handling this conversation.
+        </div>
+      )}
+
+      {showTraces && (
+        <div className="border-b p-3 bg-muted/30 shrink-0">
+          <p className="text-xs font-medium mb-2">Agent trace</p>
+          <AgentTracePanel traces={traces} isLoading={tracesLoading} />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -106,7 +154,7 @@ export function ChatView({ conversation, messages, isLoading, onSend, onResolve 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder={isHuman ? "Reply as human agent..." : "Type a message..."}
             disabled={sending}
             className="flex-1"
           />

@@ -2,6 +2,7 @@ import "dotenv/config"
 import { getEnv } from "../utils/getEnv";
 
 
+
 const appConfig = () => ({
   PORT: getEnv("PORT", "8000"),
   NODE_ENV: getEnv("NODE_ENV", "development"),

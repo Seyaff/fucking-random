@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 interface KpiCardProps {
   title: string;
   value: string;
-  delta: number;
+  delta?: number;
   icon: React.ReactNode;
+  subtitle?: string;
 }
 
-export function KpiCard({ title, value, delta, icon }: KpiCardProps) {
-  const isUp = delta >= 0;
+export function KpiCard({ title, value, delta, icon, subtitle }: KpiCardProps) {
+  const isUp = delta === undefined ? null : delta >= 0;
 
   return (
     <div className="rounded-xl border bg-card p-4 md:p-5 flex flex-col gap-2 transition-shadow hover:shadow-sm">
@@ -22,7 +23,11 @@ export function KpiCard({ title, value, delta, icon }: KpiCardProps) {
         </div>
       </div>
       <div className="flex items-end justify-between">
-        <span className="text-2xl font-bold tracking-tight">{value}</span>
+        <div>
+          <span className="text-2xl font-bold tracking-tight">{value}</span>
+          {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+        {delta !== undefined && isUp !== null && (
         <span
           className={cn(
             "inline-flex items-center gap-0.5 text-xs font-medium rounded-full px-1.5 py-0.5",
@@ -32,6 +37,7 @@ export function KpiCard({ title, value, delta, icon }: KpiCardProps) {
           {isUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
           {Math.abs(delta).toFixed(1)}%
         </span>
+        )}
       </div>
     </div>
   );

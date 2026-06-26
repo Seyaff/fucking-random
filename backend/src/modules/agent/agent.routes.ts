@@ -9,5 +9,6 @@ agentRoutes.use(authenticate);
 
 agentRoutes.post("/test", controller.test);
 agentRoutes.post("/stream", controller.stream);
+agentRoutes.get("/stats", controller.stats);
 
 export default agentRoutes;

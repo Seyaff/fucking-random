@@ -4,7 +4,10 @@ import { ConversationService } from "./conversation.service";
 import { HTTPSTATUS } from "../../config/http.config";
 import { eventService } from "../../lib/event-service";
 
+import { AgentTraceService } from "../agent/agent-trace.service";
+
 const conversationService = new ConversationService();
+const traceService = new AgentTraceService();
 
 export class ConversationController {
     list = asyncHandler(async (req: Request, res: Response) => {
@@ -35,11 +38,21 @@ export class ConversationController {
             return res.status(HTTPSTATUS.BAD_REQUEST).json({ success: false, message: "Content is required" });
         }
 
-        const message = await conversationService.addMessage(userId, id, "agent", content);
+        const result = await conversationService.getMessages(id, userId);
+        if (!result) {
+            return res.status(HTTPSTATUS.NOT_FOUND).json({ success: false, message: "Conversation not found" });
+        }
+
+        const message = await conversationService.addMessage(
+            userId,
+            result.conversation.customerPhone,
+            "agent",
+            content
+        );
 
         eventService.emit(userId, {
             type: "new_message",
-            data: { conversationId: id, customerPhone: id },
+            data: { conversationId: id, customerPhone: result.conversation.customerPhone },
         });
 
         return res.status(HTTPSTATUS.OK).json({ success: true, message });
@@ -61,5 +74,27 @@ export class ConversationController {
         await conversationService.resolveConversation(id, userId);
 
         return res.status(HTTPSTATUS.OK).json({ success: true });
+    });
+
+    resumeBot = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const id = req.params.id as string;
+
+        const result = await conversationService.getMessages(id, userId);
+        if (!result) {
+            return res.status(HTTPSTATUS.NOT_FOUND).json({ success: false, message: "Conversation not found" });
+        }
+
+        await conversationService.resumeBot(userId, result.conversation.customerPhone);
+
+        return res.status(HTTPSTATUS.OK).json({ success: true });
+    });
+
+    getTraces = asyncHandler(async (req: Request, res: Response) => {
+        const userId = req.user!._id.toString();
+        const id = req.params.id as string;
+
+        const traces = await traceService.listForConversation(id, userId);
+        return res.status(HTTPSTATUS.OK).json({ success: true, traces });
     });
 }

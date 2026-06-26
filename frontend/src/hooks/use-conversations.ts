@@ -26,6 +26,8 @@ export function useSendMessage() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["messages", variables.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["traces", variables.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["agent-stats"] });
     },
   });
 }
@@ -47,5 +49,25 @@ export function useResolveConversation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
+  });
+}
+
+export function useResumeBot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => conversationService.resumeBot(conversationId),
+    onSuccess: (_, conversationId) => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["traces", conversationId] });
+    },
+  });
+}
+
+export function useConversationTraces(conversationId: string | null) {
+  return useQuery({
+    queryKey: ["traces", conversationId],
+    queryFn: () => conversationService.getTraces(conversationId!),
+    enabled: !!conversationId,
   });
 }
