@@ -33,6 +33,10 @@ app.use(passport.initialize())
 
 app.use(morgan("dev"))
 
+app.get(`${Env.BASE_PATH}/health`, (_req: Request, res: Response) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 app.use(`${Env.BASE_PATH}/products` , productRoutes )
 app.use(`${Env.BASE_PATH}/agent` , agentRoutes )
 app.use(`${Env.BASE_PATH}/conversations` , conversationRoutes )
