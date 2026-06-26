@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Hash, Loader2, AlertCircle, MessageSquare, ArrowLeft } from "lucide-react";
+import { Hash, Loader2, MessageSquare, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { connectorService } from "@/services/connector.service";
 import { useConnectorStatuses } from "@/hooks/use-connectors";

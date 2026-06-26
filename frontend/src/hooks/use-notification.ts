@@ -3,15 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 type NotificationPermissionState = "default" | "granted" | "denied" | "unsupported";
 
 export function useNotification() {
-  const [permission, setPermission] = useState<NotificationPermissionState>("default");
-
-  useEffect(() => {
-    if (!("Notification" in window)) {
-      setPermission("unsupported");
-      return;
+  const [permission, setPermission] = useState<NotificationPermissionState>(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return "unsupported";
     }
-    setPermission(Notification.permission as NotificationPermissionState);
-  }, []);
+    return Notification.permission as NotificationPermissionState;
+  });
 
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return;

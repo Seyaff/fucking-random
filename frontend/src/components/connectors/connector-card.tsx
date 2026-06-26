@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Hash, Link2, Link2Off, Loader2, ExternalLink } from "lucide-react";
+import { Link2, Link2Off, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Image from "next/image";

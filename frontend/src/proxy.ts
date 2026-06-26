@@ -5,7 +5,6 @@ const BACKEND_URL = "http://localhost:8000";
 const LOGIN_PATH = "/login";
 const HOME_PATH = "/analytics";
 
-const publicPaths = [LOGIN_PATH, "/signup", "/auth/callback"];
 const protectedPrefixes = [
   "/analytics", "/inbox", "/orders", "/products",
   "/customers", "/connectors", "/settings", "/templates", "/agent-test",
