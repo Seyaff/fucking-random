@@ -6,10 +6,11 @@ export const REFRESH_TOKEN_COOKIE = "refreshToken";
 const REFRESH_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function setRefreshTokenCookie(res: Response, token: string): void {
+    const isProduction = process.env.NODE_ENV === "production";
     res.cookie(REFRESH_TOKEN_COOKIE, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isProduction,
+        sameSite: isProduction ? "none" as const : "lax" as const,
         path: "/",
         maxAge: REFRESH_TOKEN_MAX_AGE_MS,
     });

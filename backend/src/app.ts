@@ -3,6 +3,7 @@ import dns from "dns"
 
 import express, { Request, Response } from "express"
 import cors from "cors"
+import morgan from "morgan"
 import cookieParser from "cookie-parser"
 import passport from "passport"
 import { Env } from "./config/app.config"
@@ -32,6 +33,8 @@ app.use(cors({
     credentials : true
 }))
 app.use(passport.initialize())
+
+app.use(morgan("dev"))
 
 app.use(`${Env.BASE_PATH}/products` , productRoutes )
 app.use(`${Env.BASE_PATH}/agent` , agentRoutes )
