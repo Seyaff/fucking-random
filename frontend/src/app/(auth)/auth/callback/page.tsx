@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useAuthStore } from "@/stores/auth-store";
 import { authService } from "@/services/auth.service";
 import { Loader2 } from "lucide-react";
@@ -12,7 +11,7 @@ function CallbackContent() {
   const searchParams = useSearchParams();
   const { setAccessToken, setUser } = useAuthStore();
   const [loadError, setLoadError] = useState<string | null>(null);
-  const processedRef = useRef(false);
+  const processed = useRef(false);
 
   const errorParam = searchParams.get("error");
   const tokenParam = searchParams.get("accessToken");
@@ -24,8 +23,8 @@ function CallbackContent() {
       : null;
 
   useEffect(() => {
-    if (!tokenParam || errorParam || processedRef.current) return;
-    processedRef.current = true;
+    if (!tokenParam || errorParam || processed.current) return;
+    processed.current = true;
 
     setAccessToken(tokenParam);
     authService
@@ -46,9 +45,9 @@ function CallbackContent() {
     return (
       <div className="text-center space-y-4">
         <p className="text-destructive text-lg">{error}</p>
-        <Link href="/" className="text-sm text-muted-foreground hover:underline">
-          Back to home
-        </Link>
+        <a href="/login" className="text-sm text-muted-foreground hover:underline">
+          Back to login
+        </a>
       </div>
     );
   }
@@ -60,9 +59,7 @@ export default function AuthCallbackPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <Suspense
-        fallback={
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        }
+        fallback={<Loader2 className="size-8 animate-spin text-muted-foreground" />}
       >
         <CallbackContent />
       </Suspense>
