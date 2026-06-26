@@ -50,7 +50,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       );
       set({ accessToken: data.accessToken });
     } catch {
-      set({ user: null, accessToken: null });
+      if (!get().accessToken) {
+        set({ accessToken: null });
+      }
     } finally {
       set({ isLoading: false, isInitialized: true });
     }
