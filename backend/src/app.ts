@@ -1,9 +1,5 @@
 import "dotenv/config"
 import dns from "dns"
-import { getEnv } from "./utils/getEnv"
-
-const mav=getEnv("MONGO_URI")
-console.log(mav)
 
 import express, { Request, Response } from "express"
 import cors from "cors"
