@@ -1,5 +1,4 @@
 import "dotenv/config"
-import dns from "dns"
 
 import express, { Request, Response } from "express"
 import cors from "cors"
@@ -18,8 +17,6 @@ import eventRoutes from "./modules/events/event.routes"
 import whatsappRoutes from "./modules/whatsapp/whatsapp.routes"
 import connectorRoutes from "./modules/connectors/connector.routes"
 import protocolRoutes from "./modules/protocol/protocol.routes"
-
-dns.setServers(["1.1.1.1" , "8.8.8.8"])
 
 const app = express()
 

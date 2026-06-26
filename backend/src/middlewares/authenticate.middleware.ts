@@ -22,7 +22,7 @@ export const authenticate = async (
         const token = header.slice("Bearer ".length);
         const payload = verifyAccessToken(token);
 
-        const user = await UserModel.findById(payload.sub);
+        const user = await UserModel.findById(payload.sub).maxTimeMS(5000);
 
         if (!user) {
             throw new UnauthorizedError("User no longer exists");
