@@ -3,7 +3,7 @@ import multer from "multer";
 import { authenticate } from "../../middlewares/authenticate.middleware";
 import { ProductController } from "./product.controller";
 
-const upload = multer({ dest: "src/uploads/" });
+const upload = multer({ dest: "/tmp/uploads" });
 const controller = new ProductController();
 const productRoutes = Router();
 

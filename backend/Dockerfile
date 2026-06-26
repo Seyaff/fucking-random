@@ -14,6 +14,7 @@ WORKDIR /app
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodeuser
+RUN mkdir -p /tmp/uploads && chown nodeuser:nodejs /tmp/uploads
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
