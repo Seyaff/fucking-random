@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  MessagesSquare,
 } from "lucide-react";
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/agent-test", label: "Test Agent", icon: Bot },
   { href: "/connectors", label: "Connectors", icon: Cable },
   { href: "/templates", label: "Templates", icon: FileText },
+  { href: "/quick-replies", label: "Quick Replies", icon: MessagesSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
