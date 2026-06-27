@@ -5,9 +5,19 @@ import cors from "cors"
 import morgan from "morgan"
 import cookieParser from "cookie-parser"
 import passport from "passport"
+import * as Sentry from "@sentry/node"
 import { Env } from "./config/app.config"
 import { errorHandler } from "./middlewares/errorHandler.middleware"
 import "./config/passport.config"
+
+if (Env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: Env.SENTRY_DSN,
+    environment: Env.NODE_ENV,
+    tracesSampleRate: Env.NODE_ENV === "production" ? 0.1 : 0,
+    integrations: [Sentry.expressIntegration()],
+  });
+}
 import authRoutes from "./modules/auth/auth.routes"
 import productRoutes from "./modules/product/product.routes"
 import agentRoutes from "./modules/agent/agent.routes"
@@ -53,6 +63,10 @@ app.use(`${Env.BASE_PATH}/customers`, customerRoutes)
 app.use(`${Env.BASE_PATH}/templates`, templateRoutes)
 app.use(`${Env.BASE_PATH}/quick-replies`, quickReplyRoutes)
 
+
+if (Env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 app.use(errorHandler)
 

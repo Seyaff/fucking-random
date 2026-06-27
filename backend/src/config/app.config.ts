@@ -36,6 +36,8 @@ const appConfig = () => ({
   SLACK_CLIENT_SECRET: getEnv("SLACK_CLIENT_SECRET", ""),
   SLACK_REDIRECT_URI: getEnv("SLACK_REDIRECT_URI", ""),
 
+  SENTRY_DSN: getEnv("SENTRY_DSN", ""),
+
 });
 
 

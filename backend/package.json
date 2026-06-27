@@ -17,6 +17,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^10.62.0",
+    "@sentry/profiling-node": "^10.62.0",
     "axios": "^1.18.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.79.0",
