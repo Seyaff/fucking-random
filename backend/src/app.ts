@@ -17,6 +17,9 @@ import eventRoutes from "./modules/events/event.routes"
 import whatsappRoutes from "./modules/whatsapp/whatsapp.routes"
 import connectorRoutes from "./modules/connectors/connector.routes"
 import protocolRoutes from "./modules/protocol/protocol.routes"
+import customerRoutes from "./modules/customer/customer.routes"
+import templateRoutes from "./modules/template/template.routes"
+import quickReplyRoutes from "./modules/quick-reply/quick-reply.routes"
 
 const app = express()
 
@@ -46,6 +49,9 @@ app.use(`${Env.BASE_PATH}/whatsapp` , whatsappRoutes )
 app.use(`${Env.BASE_PATH}/auth`, authRoutes)
 app.use(`${Env.BASE_PATH}/connectors`, connectorRoutes)
 app.use(`${Env.BASE_PATH}/protocols`, protocolRoutes)
+app.use(`${Env.BASE_PATH}/customers`, customerRoutes)
+app.use(`${Env.BASE_PATH}/templates`, templateRoutes)
+app.use(`${Env.BASE_PATH}/quick-replies`, quickReplyRoutes)
 
 
 app.use(errorHandler)
