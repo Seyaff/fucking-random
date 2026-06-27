@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { authService } from "@/services/auth.service";
-import { useAuthStore } from "@/stores/auth-store";
+import { useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/lib/use-theme";
 import {
   DropdownMenu,
@@ -24,13 +23,13 @@ interface User {
 
 export function Topbar({ user }: { user: User }) {
   const router = useRouter();
-  const reset = useAuthStore((s) => s.reset);
+  const { mutate: logout } = useLogout();
 
   const { theme, toggle } = useTheme();
-  const handleLogout = async () => {
-    await authService.logout();
-    reset();
-    router.push("/");
+  const handleLogout = () => {
+    logout(undefined, {
+      onSuccess: () => router.push("/"),
+    });
   };
 
   return (

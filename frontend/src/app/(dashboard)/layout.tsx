@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
-import { authService } from "@/services/auth.service";
+import { useInitialize, useUser } from "@/hooks/use-auth";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import { Loader2 } from "lucide-react";
@@ -12,37 +12,26 @@ import { useEventStream } from "@/hooks/use-event-stream";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, accessToken, isLoading, isInitialized, setUser, setLoading } =
-    useAuthStore();
+  const { accessToken, isInitialized, reset } = useAuthStore();
+
+  const { isLoading: isBootLoading } = useInitialize();
+  const { data: user, isLoading: isUserLoading, isError } = useUser();
 
   useEventStream();
 
   useEffect(() => {
-    useAuthStore.getState().initialize();
-  }, []);
-
-  useEffect(() => {
     if (!isInitialized) return;
-
     if (!accessToken) {
       router.replace("/login");
       return;
     }
-
-    if (!user) {
-      setLoading(true);
-      authService
-        .getMe()
-        .then(setUser)
-        .catch(() => {
-          useAuthStore.getState().reset();
-          router.replace("/login");
-        })
-        .finally(() => setLoading(false));
+    if (isError) {
+      reset();
+      router.replace("/login");
     }
-  }, [isInitialized, accessToken, user, router, setUser, setLoading]);
+  }, [isInitialized, accessToken, isError, router, reset]);
 
-  if (isLoading) {
+  if (isBootLoading || (!isInitialized) || (accessToken && isUserLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />

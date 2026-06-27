@@ -1,53 +1,57 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { authService } from "@/services/auth.service";
+import { useUser } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setAccessToken, setUser } = useAuthStore();
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const processed = useRef(false);
 
   const errorParam = searchParams.get("error");
   const tokenParam = searchParams.get("accessToken");
 
-  const initialError = errorParam
-    ? "Authentication failed. Please try again."
-    : !tokenParam
-      ? "No access token received."
-      : null;
+  const { data: user, isSuccess, isError } = useUser();
 
   useEffect(() => {
     if (!tokenParam || errorParam || processed.current) return;
     processed.current = true;
-
     setAccessToken(tokenParam);
-    authService
-      .getMe()
-      .then((user) => {
-        setUser(user);
-        router.replace("/inbox");
-      })
-      .catch(() => {
-        setAccessToken(null);
-        setLoadError("Failed to load user profile.");
-      });
-  }, [tokenParam, errorParam, router, setAccessToken, setUser]);
+  }, [tokenParam, errorParam, setAccessToken]);
 
-  const error = initialError || loadError;
+  useEffect(() => {
+    if (isSuccess && user) {
+      router.replace("/inbox");
+    }
+  }, [isSuccess, user, router]);
 
-  if (error) {
+  if (errorParam) {
     return (
       <div className="text-center space-y-4">
-        <p className="text-destructive text-lg">{error}</p>
-        <a href="/login" className="text-sm text-muted-foreground hover:underline">
-          Back to login
-        </a>
+        <p className="text-destructive text-lg">Authentication failed. Please try again.</p>
+        <a href="/login" className="text-sm text-muted-foreground hover:underline">Back to login</a>
+      </div>
+    );
+  }
+
+  if (!tokenParam) {
+    return (
+      <div className="text-center space-y-4">
+        <p className="text-destructive text-lg">No access token received.</p>
+        <a href="/login" className="text-sm text-muted-foreground hover:underline">Back to login</a>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center space-y-4">
+        <p className="text-destructive text-lg">Failed to load user profile.</p>
+        <a href="/login" className="text-sm text-muted-foreground hover:underline">Back to login</a>
       </div>
     );
   }
